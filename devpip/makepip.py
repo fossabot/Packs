@@ -31,12 +31,9 @@ def makepip():
             return False
 
         if sys.argv[1].lower() == 'install' or sys.argv[1].lower() == 'i':
-            r = subprocess.run(['pip', commands[sys.argv[1].lower()], sys.argv[2]], stdout=subprocess.PIPE)
+            r = subprocess.run(['pip', commands[sys.argv[1].lower()], *sys.argv[2:]], stdout=subprocess.PIPE)
 
             print(r.stdout.decode())
-
-            # if ('Requirement already satisfied' in r.stdout.decode()):
-            #     return False
 
             r = r.stdout.decode().split("Successfully installed ")
             r = r[1].replace('\\r\\n', '').split(' ')
@@ -53,21 +50,37 @@ def makepip():
 
         else:
             lines = []
+            delPackages = []
 
-            for i in sys.argv[:2]:
+            for i in sys.argv[2:]:
+                while True:
+                    opt = input(f"Do you want remove {i} [y,n]\n>>> ")
 
-                os.system(f'pip {commands[sys.argv[1].lower()]} {sys.argv[2]}')
+                    if opt.lower() == 'y' or opt.lower() == 'n':
+                        if opt.lower() == 'y':
+                            delPackages.append(i)
+                            os.system(f'pip {commands[sys.argv[1].lower()]} {i} -y')
+                        break
+                    
+                    else:
+                        print('\n\033[91mType a option\033[37m\n')
 
             with open('requirements.txt', 'r') as f:
                 lines = f.readlines()
 
             with open('requirements.txt', 'w') as f:
                 for i in lines:
-                    if not i.lower().startswith(sys.argv[2].lower()):
-                        f.write(i)   
-            
+                    b = True
+
+                    for j in delPackages:
+                        if i.lower().split('==')[0] == j:
+                            b = False
+                            break
+
+                    if b:
+                        f.write(i)
     else:
-        print("Activate the virtual environment to use DevPip")
+        print("Please activate the virtual environment to use DevPip")
 
 
 if __name__ == '__main__':
