@@ -13,20 +13,20 @@ Até o momento o Packs não está no PyPI porem é possível baixar seu código 
 Para instalar qualquer pacote você pode usar os seguintes comandos e flags:
 
 ```
-main install "Nome do pacote"
-main i "Nome do pacote"
+python main.py install <Nome do pacote>
+python main.py i <Nome do pacote>
 
 -u para atualizar
 --dev ou -d para pacotes de produção
--r "Arquivo" para instalar os pacotes atráves de uma arquivo
+-r <Arquivo> para instalar os pacotes atráves de uma arquivo
 ```
 
 Para remover qualquer pacote use os comando a seguir e as flags:
 
 ```
-main remove "Nome do pacote"
-main uninstall "Nome do pacote"
-main rm "Nome do pacote"
+python main.py remove <Nome do pacote>
+python main.py uninstall <Nome do pacote>
+python main.py rm <Nome do pacote>
 
 --yes ou -y para aceitar tudo
 ```

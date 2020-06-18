@@ -18,8 +18,12 @@ class Main():
 
 
     def __readLinesFile(self, fileReq:str, delPackages:list) -> None:
-        with open(fileReq, 'r') as f:
-            lines = f.readlines()
+        try:
+            with open(fileReq, 'r') as f:
+                lines = f.readlines()
+
+        except FileNotFoundError:
+            return
 
         with open(fileReq, 'w') as f:
             for i in lines:
@@ -34,6 +38,26 @@ class Main():
                     f.write(i)
 
 
+    def __normalizePacks(self, fileReq:str, packs:dict) -> None:
+        try:
+            with open(fileReq, 'r') as f:
+                lines = f.readlines()
+
+        except FileNotFoundError:
+            return
+
+        with open(fileReq, 'w') as f:
+            for i in lines:
+                b = True
+                for j in packs:
+                    if i.lower().split("==")[0] == j and i.lower().replace('\n', '').replace('\r', '') != packs[j].replace('\n', '').replace('\r', ''):
+                        b = False
+                        break
+                    
+                if b and i != '\n':
+                    f.write(i)
+
+
     def install(self):
         procss = ['pip', 'install']
 
@@ -44,6 +68,7 @@ class Main():
 
         if upd:
             procss.append('-U')
+            packs = {}
 
         for i in self.__sysargs[2:]:
             p = list(procss)
@@ -62,6 +87,11 @@ class Main():
                 yield 'error'
                 continue
 
+            if f'Requirement already up-to-date: {i}' in r.stdout.decode():
+                print(f"\033[92m{i} is already installed                         \n\033[37m")
+                yield 'ok'
+                continue
+
             if f'Requirement already satisfied: {i}' in r.stdout.decode():
                 print(f"\033[92m{i} is already installed                         \n\033[37m")
                 yield 'ok'
@@ -78,7 +108,8 @@ class Main():
             except IndexError:
                 continue
 
-            print('Dependencies')
+            if len(r) > 1:
+                print('Dependencies')
 
             for p in r:
                 packageVersion = p.split('-')
@@ -88,9 +119,16 @@ class Main():
                 
                 if not p.lower().startswith(i.lower()):
                     print(p)
+
+                if upd:
+                    packs[f"{p.split('==')[0].lower()}"] = p
             
                 with open('requirements-dev.txt' if dev else 'requirements.txt', 'a') as f:
                     f.write(p + '\r')
+
+        if upd:
+            self.__normalizePacks('requirements-dev.txt', packs)
+            self.__normalizePacks('requirements.txt', packs)
 
             
     def remove(self):
