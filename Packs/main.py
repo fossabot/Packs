@@ -11,7 +11,7 @@ class Main():
         
         if __name__ == '__main__':
             if self.__sysargs[1].lower() == 'install' or self.__sysargs[1].lower() == 'i':
-                print(list(self.install()))
+                list(self.install())
 
             elif self.__sysargs[1].lower() == 'uninstall' or self.__sysargs[1].lower() == 'rm' or self.__sysargs[1].lower() == 'remove':
                 list(self.remove())
