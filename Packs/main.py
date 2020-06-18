@@ -1,3 +1,4 @@
+from typing import Generator
 import subprocess
 import platform
 import sys
@@ -5,18 +6,18 @@ import os
 
 
 class Main():
-    def __init__(self, ar:list, commands:dict):
+    def __init__(self, ar:list) -> None:
         self.__sysargs = ar
-        self.__commands = commands
+        
+        if __name__ == '__main__':
+            if self.__sysargs[1].lower() == 'install' or self.__sysargs[1].lower() == 'i':
+                print(list(self.install()))
 
-        if self.__sysargs[1].lower() == 'install' or self.__sysargs[1].lower() == 'i':
-            self.__install()
-
-        elif self.__sysargs[1].lower() == 'uninstall' or self.__sysargs[1].lower() == 'rm' or self.__sysargs[1].lower() == 'remove':
-            self.__remove()
+            elif self.__sysargs[1].lower() == 'uninstall' or self.__sysargs[1].lower() == 'rm' or self.__sysargs[1].lower() == 'remove':
+                list(self.remove())
 
 
-    def __readLinesFile(self, fileReq:str, delPackages:list):
+    def __readLinesFile(self, fileReq:str, delPackages:list) -> None:
         with open(fileReq, 'r') as f:
             lines = f.readlines()
 
@@ -33,7 +34,7 @@ class Main():
                     f.write(i)
 
 
-    def __install(self):
+    def install(self):
         procss = ['pip', 'install']
 
         generalCommands = ['--dev', '-d', '-u']
@@ -58,15 +59,17 @@ class Main():
 
             if r.returncode == 1:
                 print(f"\n\033[37m")
+                yield 'error'
                 continue
 
             if f'Requirement already satisfied: {i}' in r.stdout.decode():
                 print(f"\033[92m{i} is already installed                         \n\033[37m")
-
+                yield 'ok'
 
             else:
                 x = r.stdout.decode().split('Successfully installed ')[1].split(' ')[0].split('-')[1]
                 print(f"\033[92m{i} installed in version {x}        \n\033[37m")
+                yield 'ok'
 
             try:
                 r = r.stdout.decode().split("Successfully installed ")
@@ -89,8 +92,8 @@ class Main():
                 with open('requirements-dev.txt' if dev else 'requirements.txt', 'a') as f:
                     f.write(p + '\r')
 
-
-    def __remove(self):
+            
+    def remove(self):
         delPackages = []
         generalCommands = ['--yes', '-y']
 
@@ -111,10 +114,13 @@ class Main():
                     if opt.lower() == 'y':
                         delPackages.append(i)
                         os.system(f'pip {commands[self.__sysargs[1].lower()]} {i} -y')
+                    
+                    yield 'valid'
                     break
                 
                 else:
                     print('\n\033[91mType a valid option\033[37m\n')
+                    yield 'invalid'
 
         self.__readLinesFile('requirements.txt', delPackages)
         self.__readLinesFile('requirements-dev.txt', delPackages)
@@ -149,7 +155,7 @@ if __name__ == '__main__':
             print('\033[91m Invalid command\033[37m')
 
         else:
-            Main(sys.argv, commands)
+            Main(sys.argv)
 
     else:
         print("Please activate the virtual environment to use DevPip")
