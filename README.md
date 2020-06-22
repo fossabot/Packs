@@ -31,4 +31,7 @@ python main.py rm <Nome do pacote>
 --yes ou -y para aceitar tudo
 ```
 
-<p style="text-align: center;">Vupy social networking© 2020</p>
+
+<strong>
+    <p align="center" style="text-align: center;">Vupy social networking© 2020</p>
+</strong>
