@@ -1,3 +1,5 @@
+<img src="./Packs/logo/logo.png" />
+
 # Packs
 
 Packs é um pacote que auxilia o Pip na instalação e gerenciamento de pacotes. Com o Pip é possível instalar varios pacotes para o Python, todavia no momento de gerar o arquivo requirements.txt sempre haverá alguns pacotes que não são necessários para o ambiente de produção. E nesse contexto o Packs pode lhe auxiliar com os pacotes de desenvolvimento e os de produção.
