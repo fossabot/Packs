@@ -1,45 +1,87 @@
 import tempfile
 import urllib3
 import tarfile
+import shutil
+import wheel
 import json
 import os
 import sys
+
 
 class Installer:
     def __init__(self, args:list):
         self.run(args)
 
+    
+    def movePaths(self, folders:list, path:str) -> None:
+        env = os.getenv('VIRTUAL_ENV')
+
+        for i in folders:
+            if i.endswith('.data'):
+                dirs = os.listdir(path + i + "/scripts")
+                print("Data")
+                for j in dirs:
+                    shutil.move(f"{path}{i}/scripts/{j}", env + "/Scripts")
+
+                continue
+
+            try:
+                shutil.move(path + i, env + "/Lib/site-packages")
+                pass
+            except Exception as identifier:
+                pass
+
+
+    def onlyDir(self, path:str) -> list:
+        return [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
+
+
+    def tarPackages(self, res:dict, http):
+        v = res['info']['version']
+        remote = res['releases'][f'{v}'][0]
+
+        files = http.request("GET", remote['url'])
+        temp = tempfile.gettempdir()
+
+        with open(temp + f"/{remote['filename']}", "wb") as f:
+            f.write(files.data)
+
+        tar = tarfile.open(temp + f"/{remote['filename']}")
+        tar.extractall(temp)
+        tar.close()
+
+
 
     def installPackage(self, res:dict, http) -> None:
         v = res['info']['version']
 
-        remote = [i for i in res['releases'][f'{v}'] if i['url'].endswith('.tar') or i['url'].endswith('.tar.gz')][0]
+        remote = [i for i in res['releases'][f'{v}'] if i['url'].endswith('.whl')]
+
+        if remote == []:
+            self.tarPackages(res, http)
+            return
+
+        remote = remote[0]
 
         files = http.request("GET", remote['url'])
-
         temp = tempfile.gettempdir()
 
         with open(temp + f"/{remote['filename']}", "wb") as f:
-            f.write(files.data) 
+            f.write(files.data)
 
-        print(temp + f"\\{remote['filename']}")
+        path = f"{temp}/{res['info']['name'].replace('-', '_')}-{v}/"
+        os.system(f"wheel unpack {temp}\\{remote['filename']} -d {temp}")
+        folder = self.onlyDir(f"{path}/")
 
-        tar = tarfile.open(temp + f"\\{remote['filename']}", 'r:gz')
-        tar.extractall(temp)
+        print(folder)
 
-        print(temp + f"\\{remote['filename'].replace('.tar.gz', '')}")
-        print(os.path.isdir(temp + f"\\{remote['filename'].replace('.tar.gz', '')}"))
-
-        tar.close() 
-
-        sys.path.insert(1, temp + f"\\{remote['filename'].replace('.tar.gz', '')}")
-        os.system(f"python {temp}\\{remote['filename'].replace('.tar.gz', '')}\\setup.py install")
-
-        print(res['releases'][f'{v}'][0]['url'])
+        self.movePaths(folder, path)
 
 
     def dependencies(self, pack:str, http) -> str:
         packinfo = http.request("GET", f"https://pypi.org/pypi/{pack}/json/")
+
+        print(f"https://pypi.org/pypi/{pack}/json/")
 
         if packinfo.status == 404:
             return "error"
