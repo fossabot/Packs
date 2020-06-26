@@ -1,3 +1,5 @@
+import subprocess
+import itertools
 import tempfile
 import urllib3
 import tarfile
@@ -7,88 +9,60 @@ import json
 import os
 import sys
 
-
 class Installer:
     def __init__(self, args:list):
         self.run(args)
 
-    
-    def movePaths(self, folders:list, path:str) -> None:
-        env = os.getenv('VIRTUAL_ENV')
 
-        for i in folders:
-            if i.endswith('.data'):
-                dirs = os.listdir(path + i + "/scripts")
-                print("Data")
-                for j in dirs:
-                    shutil.move(f"{path}{i}/scripts/{j}", env + "/Scripts")
+    def normalizeVersion(self, version:str, res:list) -> list:
+        if version:
+            if "==" in version:
+                vx = version.replace("==", "").replace("(", '').replace(")", '')
+                remote = [i for i in res['releases'][f'{vx}'] if i['url'].endswith('.tar') or i['url'].endswith('.tar.gz')][0]
+                print(remote)
 
-                continue
+            else:
+                vx = version.replace("(", '').replace(")", '')
+        
 
-            try:
-                shutil.move(path + i, env + "/Lib/site-packages")
-                pass
-            except Exception as identifier:
-                pass
-
-
-    def onlyDir(self, path:str) -> list:
-        return [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
-
-
-    def tarPackages(self, res:dict, http):
+    def installPackage(self, res:dict, http, version:str) -> None:
         v = res['info']['version']
-        remote = res['releases'][f'{v}'][0]
 
+        # self.normalizeVersion(version, res)
+
+        remote = [i for i in res['releases'][f'{v}'] if i['url'].endswith('.tar') or i['url'].endswith('.tar.gz')][0]
+
+        # print(f"\033[95m\nDownloading {res['info']['name']}\033[37m")
         files = http.request("GET", remote['url'])
         temp = tempfile.gettempdir()
 
         with open(temp + f"/{remote['filename']}", "wb") as f:
             f.write(files.data)
 
-        tar = tarfile.open(temp + f"/{remote['filename']}")
-        tar.extractall(temp)
-        tar.close()
+        # print(f"\n\033[92mDownload finish           \033[37m")
+        
+        path = f"{temp}/{res['info']['name'].replace('-', '_')}-{v}\\"
 
+        with tarfile.open(temp + f"/{remote['filename']}", "r:gz") as tar:
+            tar.extractall(temp)
 
+        os.chdir(path)
+        FNULL = open(os.devnull, 'w')
 
-    def installPackage(self, res:dict, http) -> None:
-        v = res['info']['version']
-
-        remote = [i for i in res['releases'][f'{v}'] if i['url'].endswith('.whl')]
-
-        if remote == []:
-            self.tarPackages(res, http)
-            return
-
-        remote = remote[0]
-
-        files = http.request("GET", remote['url'])
-        temp = tempfile.gettempdir()
-
-        with open(temp + f"/{remote['filename']}", "wb") as f:
-            f.write(files.data)
-
-        path = f"{temp}/{res['info']['name'].replace('-', '_')}-{v}/"
-        os.system(f"wheel unpack {temp}\\{remote['filename']} -d {temp}")
-        folder = self.onlyDir(f"{path}/")
-
-        print(folder)
-
-        self.movePaths(folder, path)
+        
+        subprocess.run(['python', 'setup.py', 'install'], stdout=FNULL, stderr=subprocess.PIPE)
 
 
     def dependencies(self, pack:str, http) -> str:
-        packinfo = http.request("GET", f"https://pypi.org/pypi/{pack}/json/")
-
-        print(f"https://pypi.org/pypi/{pack}/json/")
+        packinfo = http.request("GET", f"https://pypi.org/pypi/{pack.split(' ')[0]}/json/")
 
         if packinfo.status == 404:
             return "error"
 
         packinfo = json.loads(packinfo.data.decode())
 
-        self.installPackage(packinfo, http)
+        ver = pack.split(' ')
+        self.installPackage(packinfo, http, ver[1] if len(ver) > 1 else None)
         
         return f"{packinfo['info']['name']}=={packinfo['info']['version']}"
         
@@ -104,7 +78,6 @@ class Installer:
         print(f"\n\033[92mPackage {pack} founded in version {packinfo['info']['version']}\033[37m")
         
         if packinfo['info']['requires_dist']:
-
             print(f"\n\033[93m{pack} dependencies:\033[37m")
 
             for i in packinfo['info']['requires_dist']:
@@ -113,13 +86,14 @@ class Installer:
 
                 print(" " * 3, i.split(' ')[0], end="\r")
                 
-                a = self.dependencies(i.split(' ')[0], http)
+                a = self.dependencies(i, http)
                 
                 print(" " * 3, f"\033[92m{a}\033[37m")
 
             print('\n')
         
-        self.installPackage(packinfo, http)
+        self.installPackage(packinfo, http, None)
+        print("SADAS")
         return packinfo
 
 
