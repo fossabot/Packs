@@ -1,3 +1,6 @@
+from Utils.versionControl import lessThan, moreThan, equals, equalSerie, combine
+from pip._internal.operations.install.wheel import install_wheel
+from pip._internal.locations import get_scheme
 import subprocess
 import itertools
 import tempfile
@@ -9,48 +12,106 @@ import json
 import os
 import sys
 
+
 class Installer:
     def __init__(self, args:list):
         self.run(args)
 
 
     def normalizeVersion(self, version:str, res:list) -> list:
+        version = version.replace(res['info']['name'], '')
+
+        versionControl = {
+            "<": lessThan,
+            "==": equals,
+            '~': equalSerie,
+            '>': moreThan,
+        }
+
         if version:
             if "==" in version:
-                vx = version.replace("==", "").replace("(", '').replace(")", '')
-                remote = [i for i in res['releases'][f'{vx}'] if i['url'].endswith('.tar') or i['url'].endswith('.tar.gz')][0]
-                print(remote)
+                return versionControl['=='](version, res['releases'])
 
             else:
-                vx = version.replace("(", '').replace(")", '')
-        
+                releases = res['releases']
+                vx = version.replace("(", '').replace(")", '').replace(' ', '').split(',')
+                l = []
 
-    def installPackage(self, res:dict, http, version:str) -> None:
-        v = res['info']['version']
+                for i in vx:
+                    track = versionControl[i[0]](i, releases)
 
-        # self.normalizeVersion(version, res)
+                    if "msg" in track:
+                        return 'ErrorV'
 
-        remote = [i for i in res['releases'][f'{v}'] if i['url'].endswith('.tar') or i['url'].endswith('.tar.gz')][0]
+                    l.append(track)
 
-        # print(f"\033[95m\nDownloading {res['info']['name']}\033[37m")
-        files = http.request("GET", remote['url'])
-        temp = tempfile.gettempdir()
+                c = combine(l)
 
-        with open(temp + f"/{remote['filename']}", "wb") as f:
+                if len(c) > 0:
+                    return c[len(c) - 1]
+
+                return "ErrorR"
+
+    def wheelInstall(self, name:str, filewhl:str) -> None:
+        scheme = get_scheme(
+            name,
+            user=False,
+            home=None,
+            root=None,
+            prefix=None,
+        )
+
+        install_wheel(
+            name,
+            filewhl,
+            scheme=scheme,
+            req_description=name,
+            pycompile=True,
+        )
+
+    
+    def downloadPackage(self, url:str, filew:str, http) -> None:
+        files = http.request("GET", url)
+
+        with open(filew, "wb") as f:
             f.write(files.data)
 
-        # print(f"\n\033[92mDownload finish           \033[37m")
+    
+    def installPackageDependencies(self, res:dict, http, version:str) -> None:
+        v = res['info']['version']
+        temp = tempfile.gettempdir()
+
+        remote = [i for i in res['releases'][f'{v}'] if i['url'].endswith('.tar') or i['url'].endswith('.whl')][0]
+
+        self.downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
+        self.wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
         
-        path = f"{temp}/{res['info']['name'].replace('-', '_')}-{v}\\"
 
-        with tarfile.open(temp + f"/{remote['filename']}", "r:gz") as tar:
-            tar.extractall(temp)
+    def installPackage(self, res:dict, http, version:str) -> str:
+        temp = tempfile.gettempdir()
+        vers = self.normalizeVersion(version, res)
 
-        os.chdir(path)
-        FNULL = open(os.devnull, 'w')
+        if vers == "ErrorR":
+            print("\033[91mERROR there is no version that satisfies the condition\033[37m")
+            return
 
-        
-        subprocess.run(['python', 'setup.py', 'install'], stdout=FNULL, stderr=subprocess.PIPE)
+        if vers == "ErrorV":
+            return
+
+        print(f"\n\033[92mPackage {res['info']['name']} found in version {vers[len(vers) - 1]}\033[37m")
+
+        remote = [i for i in vers[:1] if i['url'].endswith('.tar') or i['url'].endswith('.whl')][0]
+
+        ### DOWNLOAD
+
+        print(f"\033[95m\nDownloading {res['info']['name']}\033[37m", end='\r')
+        self.downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
+        print(f"\033[92mDownload finish           \033[37m")
+
+        ### INSTALL 
+
+        self.wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
+        return remote
 
 
     def dependencies(self, pack:str, http) -> str:
@@ -62,23 +123,25 @@ class Installer:
         packinfo = json.loads(packinfo.data.decode())
 
         ver = pack.split(' ')
-        self.installPackage(packinfo, http, ver[1] if len(ver) > 1 else None)
+        self.installPackageDependencies(packinfo, http, ver[1] if len(ver) > 1 else None)
         
         return f"{packinfo['info']['name']}=={packinfo['info']['version']}"
         
 
     def remote_package(self, pack:str, http) -> dict:
-        packinfo = http.request("GET", f"https://pypi.org/pypi/{pack}/json/")
+        packName = pack.replace("=", ' ').replace(">", ' ').replace("<", ' ').replace("~", ' ').split(' ')[0]
+    
+        packinfo = http.request("GET", f"https://pypi.org/pypi/{packName}/json/")
             
         if packinfo.status == 404:
-            print(f"\n\033[91mPackage {pack} not founded\033[37m")
+            print(f"\n\033[91mPackage {packName} not found\033[37m")
             return {}
-        
+
         packinfo = json.loads(packinfo.data.decode())
-        print(f"\n\033[92mPackage {pack} founded in version {packinfo['info']['version']}\033[37m")
-        
+        vers = self.installPackage(packinfo, http, pack)
+                
         if packinfo['info']['requires_dist']:
-            print(f"\n\033[93m{pack} dependencies:\033[37m")
+            print(f"\n\033[93m{packName} dependencies:\033[37m")
 
             for i in packinfo['info']['requires_dist']:
                 if ('; extra' in i): 
@@ -92,8 +155,6 @@ class Installer:
 
             print('\n')
         
-        self.installPackage(packinfo, http, None)
-        print("SADAS")
         return packinfo
 
 
