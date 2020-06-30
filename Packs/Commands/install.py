@@ -1,4 +1,5 @@
-from Utils.versionControl import lessThan, moreThan, equals, equalSerie, combine, getVersions
+from Utils.versionControl import lessThan, moreThan, equals, equalSerie, combine, getVersions, byteCalc
+import pkg_resources as pr
 import subprocess
 import itertools
 import tempfile
@@ -21,11 +22,16 @@ except ModuleNotFoundError:
 
 class Installer:
     def __init__(self, args:list):
+        temp = tempfile.gettempdir()
+
+        if not os.path.exists(temp + "/packsX"):
+            os.mkdir(temp + "/packsX")
+
         self.run(args)
 
 
     def __normalizeVersion(self, version:str, res:list) -> list:
-        version = version.replace(res['info']['name'], '')
+        version = version.replace(res['info']['name'].lower(), '')
         releases = res['releases']
 
         versionControl = {
@@ -35,7 +41,7 @@ class Installer:
             '>': moreThan,
         }
 
-        if version:
+        if "=" in version or ">" in version or "<" in version or "~=" in version:
             if "==" in version:
                 return versionControl['=='](version, releases)
 
@@ -58,34 +64,40 @@ class Installer:
 
                 return "ErrorR"
 
-        l = sorted(releases, key=lambda x: releases[x][0]['upload_time'])
-        rels = getVersions(l, releases)
-        
-        c = combine([rels])
-        c = c[len(c) - 1]
+        c = releases[res['info']['version']]
+        c.append(res['info']['version'])
 
         return c
 
 
-    def __wheelInstall(self, name:str, filewhl:str) -> None:
-        scheme = get_scheme(
-            name,
-            user=False,
-            home=None,
-            root=None,
-            prefix=None,
-        )
+    def __wheelInstall(self, name:str, filewhl:str) -> bool:
+        try:
+            pr.get_distribution(name)
 
-        install_wheel(
-            name,
-            filewhl,
-            scheme=scheme,
-            req_description=name,
-            pycompile=True,
-        )
+        except Exception:
+            scheme = get_scheme(
+                name,
+                user=False,
+                home=None,
+                root=None,
+                prefix=None,
+            )
 
+            install_wheel(
+                name,
+                filewhl,
+                scheme=scheme,
+                req_description=name,
+                pycompile=True,
+            )
+
+            return False
+        return True
     
     def __downloadPackage(self, url:str, filew:str, http) -> None:
+        if os.path.exists(filew):
+            return
+
         files = http.request("GET", url)
 
         with open(filew, "wb") as f:
@@ -96,6 +108,7 @@ class Installer:
         temp = tempfile.gettempdir()
 
         vers = self.__normalizeVersion(version, res)
+        vers.pop()
 
         if vers == "ErrorR":
             print("\033[91mERROR there is no version that satisfies the condition\033[37m")
@@ -103,37 +116,49 @@ class Installer:
 
         if vers == "ErrorV":
             return
+        
+        remote = [i for i in vers if i['url'].endswith('.whl')]
 
-        remote = [i for i in vers[:1] if i['url'].endswith('.whl')][0]
+        if len(remote) == 0:
+            return True
 
-        self.__downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
-        self.__wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
+        else:
+            remote = remote[0]
+            self.__downloadPackage(remote['url'], temp + f"/packsX/{remote['filename']}", http)
+            return self.__wheelInstall(res['info']['name'], temp + f"/packsX/{remote['filename']}")
         
 
     def __installPackage(self, res:dict, http, version:str) -> str:
         temp = tempfile.gettempdir()
         vers = self.__normalizeVersion(version, res)
+        v = vers.pop()
 
         if vers == "ErrorR":
             print("\033[91mERROR there is no version that satisfies the condition\033[37m")
             return
 
         if vers == "ErrorV":
-            return
-
-        print(f"\n\033[92mPackage {res['info']['name']} found in version {vers[len(vers) - 1]}\033[37m")
+            return "error"
         
-        remote = [i for i in vers[:1] if i['url'].endswith('.whl')][0]
+        remote = [i for i in vers if i['url'].endswith('.whl')][0]
+        print(f"\n\033[92mPackage {res['info']['name']} found in version {v} ({byteCalc(remote['size'])})\033[37m")
 
         ### DOWNLOAD
 
         print(f"\033[95m\nDownloading {res['info']['name']}\033[37m", end='\r')
-        self.__downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
+        self.__downloadPackage(remote['url'], temp + f"/packsX/{remote['filename']}", http)
         print(f"\033[92mDownload finish           \033[37m")
 
         ### INSTALL 
+        print(f"\033[95m\nInstalling {res['info']['name']}\033[37m", end='\r')
+        whl = self.__wheelInstall(res['info']['name'], temp + f"/packsX/{remote['filename']}")
+        
+        if not whl:
+            print(f"\033[92m{res['info']['name']} was successfully installed \033[37m")
 
-        self.__wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
+        else:
+            print(f"\033[94m{res['info']['name']} already installled \033[37m")
+
         return remote
 
 
@@ -145,8 +170,10 @@ class Installer:
 
         packinfo = json.loads(packinfo.data.decode())
 
-        ver = pack.split(' ')
-        self.__installPackageDependencies(packinfo, http, ver[1] if len(ver) > 1 else None)
+        inst = self.__installPackageDependencies(packinfo, http, pack)
+
+        if inst:
+            return f"\033[94m{packinfo['info']['name']}=={packinfo['info']['version']} already installled"
         
         return f"{packinfo['info']['name']}=={packinfo['info']['version']}"
         
@@ -161,7 +188,10 @@ class Installer:
             return {}
 
         packinfo = json.loads(packinfo.data.decode())
-        self.__installPackage(packinfo, http, pack)
+        pac = self.__installPackage(packinfo, http, pack)
+
+        if pac == 'error':
+            return
                 
         if packinfo['info']['requires_dist']:
             print(f"\n\033[93m{packName} dependencies:\033[37m")
