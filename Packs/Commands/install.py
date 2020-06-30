@@ -1,16 +1,22 @@
-from Utils.versionControl import lessThan, moreThan, equals, equalSerie, combine
-from pip._internal.operations.install.wheel import install_wheel
-from pip._internal.locations import get_scheme
+from Utils.versionControl import lessThan, moreThan, equals, equalSerie, combine, getVersions
 import subprocess
 import itertools
 import tempfile
 import urllib3
 import tarfile
 import shutil
-import wheel
 import json
-import os
 import sys
+import os
+
+try:
+    from pip._internal.operations.install.wheel import install_wheel
+    from pip._internal.locations import get_scheme
+    import wheel
+
+except ModuleNotFoundError:
+    print("\n\033[91mPlease activate the virtual environment to use Packs\n\033[37m")
+    sys.exit(0)
 
 
 class Installer:
@@ -18,8 +24,9 @@ class Installer:
         self.run(args)
 
 
-    def normalizeVersion(self, version:str, res:list) -> list:
+    def __normalizeVersion(self, version:str, res:list) -> list:
         version = version.replace(res['info']['name'], '')
+        releases = res['releases']
 
         versionControl = {
             "<": lessThan,
@@ -30,10 +37,9 @@ class Installer:
 
         if version:
             if "==" in version:
-                return versionControl['=='](version, res['releases'])
+                return versionControl['=='](version, releases)
 
             else:
-                releases = res['releases']
                 vx = version.replace("(", '').replace(")", '').replace(' ', '').split(',')
                 l = []
 
@@ -52,7 +58,16 @@ class Installer:
 
                 return "ErrorR"
 
-    def wheelInstall(self, name:str, filewhl:str) -> None:
+        l = sorted(releases, key=lambda x: releases[x][0]['upload_time'])
+        rels = getVersions(l, releases)
+        
+        c = combine([rels])
+        c = c[len(c) - 1]
+
+        return c
+
+
+    def __wheelInstall(self, name:str, filewhl:str) -> None:
         scheme = get_scheme(
             name,
             user=False,
@@ -70,26 +85,34 @@ class Installer:
         )
 
     
-    def downloadPackage(self, url:str, filew:str, http) -> None:
+    def __downloadPackage(self, url:str, filew:str, http) -> None:
         files = http.request("GET", url)
 
         with open(filew, "wb") as f:
             f.write(files.data)
 
     
-    def installPackageDependencies(self, res:dict, http, version:str) -> None:
-        v = res['info']['version']
+    def __installPackageDependencies(self, res:dict, http, version:str) -> None:
         temp = tempfile.gettempdir()
 
-        remote = [i for i in res['releases'][f'{v}'] if i['url'].endswith('.tar') or i['url'].endswith('.whl')][0]
+        vers = self.__normalizeVersion(version, res)
 
-        self.downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
-        self.wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
+        if vers == "ErrorR":
+            print("\033[91mERROR there is no version that satisfies the condition\033[37m")
+            return
+
+        if vers == "ErrorV":
+            return
+
+        remote = [i for i in vers[:1] if i['url'].endswith('.whl')][0]
+
+        self.__downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
+        self.__wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
         
 
-    def installPackage(self, res:dict, http, version:str) -> str:
+    def __installPackage(self, res:dict, http, version:str) -> str:
         temp = tempfile.gettempdir()
-        vers = self.normalizeVersion(version, res)
+        vers = self.__normalizeVersion(version, res)
 
         if vers == "ErrorR":
             print("\033[91mERROR there is no version that satisfies the condition\033[37m")
@@ -99,22 +122,22 @@ class Installer:
             return
 
         print(f"\n\033[92mPackage {res['info']['name']} found in version {vers[len(vers) - 1]}\033[37m")
-
-        remote = [i for i in vers[:1] if i['url'].endswith('.tar') or i['url'].endswith('.whl')][0]
+        
+        remote = [i for i in vers[:1] if i['url'].endswith('.whl')][0]
 
         ### DOWNLOAD
 
         print(f"\033[95m\nDownloading {res['info']['name']}\033[37m", end='\r')
-        self.downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
+        self.__downloadPackage(remote['url'], temp + f"/{remote['filename']}", http)
         print(f"\033[92mDownload finish           \033[37m")
 
         ### INSTALL 
 
-        self.wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
+        self.__wheelInstall(res['info']['name'], temp + f"/{remote['filename']}")
         return remote
 
 
-    def dependencies(self, pack:str, http) -> str:
+    def __dependencies(self, pack:str, http) -> str:
         packinfo = http.request("GET", f"https://pypi.org/pypi/{pack.split(' ')[0]}/json/")
 
         if packinfo.status == 404:
@@ -123,12 +146,12 @@ class Installer:
         packinfo = json.loads(packinfo.data.decode())
 
         ver = pack.split(' ')
-        self.installPackageDependencies(packinfo, http, ver[1] if len(ver) > 1 else None)
+        self.__installPackageDependencies(packinfo, http, ver[1] if len(ver) > 1 else None)
         
         return f"{packinfo['info']['name']}=={packinfo['info']['version']}"
         
 
-    def remote_package(self, pack:str, http) -> dict:
+    def __remote_package(self, pack:str, http) -> dict:
         packName = pack.replace("=", ' ').replace(">", ' ').replace("<", ' ').replace("~", ' ').split(' ')[0]
     
         packinfo = http.request("GET", f"https://pypi.org/pypi/{packName}/json/")
@@ -138,7 +161,7 @@ class Installer:
             return {}
 
         packinfo = json.loads(packinfo.data.decode())
-        vers = self.installPackage(packinfo, http, pack)
+        self.__installPackage(packinfo, http, pack)
                 
         if packinfo['info']['requires_dist']:
             print(f"\n\033[93m{packName} dependencies:\033[37m")
@@ -149,7 +172,7 @@ class Installer:
 
                 print(" " * 3, i.split(' ')[0], end="\r")
                 
-                a = self.dependencies(i, http)
+                a = self.__dependencies(i, http)
                 
                 print(" " * 3, f"\033[92m{a}\033[37m")
 
@@ -162,7 +185,7 @@ class Installer:
         http = urllib3.PoolManager()
 
         for i in args[2:]:
-            res = self.remote_package(i, http)
+            res = self.__remote_package(i, http)
 
             if res == {}:
                 continue

@@ -33,4 +33,4 @@ if __name__ == '__main__':
             commands[sys.argv[1].lower()](sys.argv)
 
     else:
-        print("Please activate the virtual environment to use Packs")
+        print("\n\033[91mPlease activate the virtual environment to use Packs\n\033[37m")
