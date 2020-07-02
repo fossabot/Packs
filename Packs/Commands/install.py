@@ -1,4 +1,7 @@
-from Utils.versionControl import lessThan, moreThan, equals, equalSerie, combine, getVersions, byteCalc
+from Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
+from Utils.dependenciesControl import addDependencies
+from Utils.cliControl import listArgsInstall
+from typing import Callable
 import pkg_resources as pr
 import subprocess
 import itertools
@@ -23,6 +26,8 @@ except ModuleNotFoundError:
 class Installer:
     def __init__(self, args:list):
         temp = tempfile.gettempdir()
+        self.__deps = []
+        self.__dev = False
 
         if not os.path.exists(temp + "/packsX"):
             os.mkdir(temp + "/packsX")
@@ -31,7 +36,7 @@ class Installer:
 
 
     def __normalizeVersion(self, version:str, res:list) -> list:
-        version = version.replace(res['info']['name'].lower(), '')
+        version = version.lower().replace(res['info']['name'].lower(), '')
         releases = res['releases']
 
         versionControl = {
@@ -66,7 +71,7 @@ class Installer:
 
         c = releases[res['info']['version']]
         c.append(res['info']['version'])
-
+        
         return c
 
 
@@ -93,6 +98,37 @@ class Installer:
 
             return False
         return True
+
+
+    def __tarInstall(self, name:str, filewhl:str) -> bool:
+        temp = tempfile.gettempdir()
+
+        try:
+            pr.get_distribution(name)
+
+        except Exception:
+            with tarfile.open(filewhl, 'r:gz') as tar:
+                tar.extractall(temp + "/packsX")
+
+            os.chdir(filewhl.replace(".tar.gz", ''))
+
+            FNULL = open(os.devnull, 'w')
+
+            subprocess.run(['python', 'setup.py', 'install'], stdout=FNULL, stderr=subprocess.PIPE)
+            return False
+
+        return True
+
+
+    def __checkTypeInstallation(self, vers:list) -> list:
+        remote = [i for i in vers if i['url'].endswith('.whl')]
+
+        if len(remote) == 0:
+            return [vers[0], self.__tarInstall]
+
+        else:
+            return [remote[0], self.__wheelInstall]
+
     
     def __downloadPackage(self, url:str, filew:str, http) -> None:
         if os.path.exists(filew):
@@ -104,11 +140,11 @@ class Installer:
             f.write(files.data)
 
     
-    def __installPackageDependencies(self, res:dict, http, version:str) -> None:
+    def __installPackageDependencies(self, res:dict, http, version:str) -> list:
         temp = tempfile.gettempdir()
 
         vers = self.__normalizeVersion(version, res)
-        vers.pop()
+        vx = vers.pop()
 
         if vers == "ErrorR":
             print("\033[91mERROR there is no version that satisfies the condition\033[37m")
@@ -117,15 +153,11 @@ class Installer:
         if vers == "ErrorV":
             return
         
-        remote = [i for i in vers if i['url'].endswith('.whl')]
+        
+        remote = self.__checkTypeInstallation(vers)
 
-        if len(remote) == 0:
-            return True
-
-        else:
-            remote = remote[0]
-            self.__downloadPackage(remote['url'], temp + f"/packsX/{remote['filename']}", http)
-            return self.__wheelInstall(res['info']['name'], temp + f"/packsX/{remote['filename']}")
+        self.__downloadPackage(remote[0]['url'], temp + f"/packsX/{remote[0]['filename']}", http)
+        return [remote[1](res['info']['name'], temp + f"/packsX/{remote[0]['filename']}"), remote[0]['size'], vx]
         
 
     def __installPackage(self, res:dict, http, version:str) -> str:
@@ -140,18 +172,20 @@ class Installer:
         if vers == "ErrorV":
             return "error"
         
-        remote = [i for i in vers if i['url'].endswith('.whl')][0]
-        print(f"\n\033[92mPackage {res['info']['name']} found in version {v} ({byteCalc(remote['size'])})\033[37m")
+        remote = self.__checkTypeInstallation(vers)
+
+        print(f"\n\033[92mPackage {res['info']['name']} found in version {v} ({byteCalc(remote[0]['size'])})\033[37m")
+        addDependencies(f"{res['info']['name']}=={v}", self.__dev)
 
         ### DOWNLOAD
 
         print(f"\033[95m\nDownloading {res['info']['name']}\033[37m", end='\r')
-        self.__downloadPackage(remote['url'], temp + f"/packsX/{remote['filename']}", http)
+        self.__downloadPackage(remote[0]['url'], temp + f"/packsX/{remote[0]['filename']}", http)
         print(f"\033[92mDownload finish           \033[37m")
 
         ### INSTALL 
         print(f"\033[95m\nInstalling {res['info']['name']}\033[37m", end='\r')
-        whl = self.__wheelInstall(res['info']['name'], temp + f"/packsX/{remote['filename']}")
+        whl = remote[1](res['info']['name'], temp + f"/packsX/{remote[0]['filename']}")
         
         if not whl:
             print(f"\033[92m{res['info']['name']} was successfully installed \033[37m")
@@ -159,23 +193,53 @@ class Installer:
         else:
             print(f"\033[94m{res['info']['name']} already installled \033[37m")
 
-        return remote
+        return remote[0]
 
 
-    def __dependencies(self, pack:str, http) -> str:
+    def __dependenciesLoop(self, reqs:list, fun:Callable, http, spacer:int = 3):
+        for i in reqs:
+            if '; extra' in i or i.split(' ')[0] in self.__deps or "and extra" in i: 
+                continue
+            
+            if "; python_version" in i and not validVersionPython(i.split("; python_version ")[1].replace('"', '')):
+                continue
+
+            i = i.split(" ; ")[0]
+            self.__deps.append(i.split(' ')[0])
+
+            print(" " * spacer, i.split(' ')[0], end="\r")
+            
+            a = fun(i, http, spacer)
+            
+            print(" " * spacer, f"\033[92m{a[0]}\033[37m")
+
+            if len(a) > 1:
+                a[1](*a[2])
+
+    
+    def __dependencies(self, pack:str, http, spacer:int) -> list:
         packinfo = http.request("GET", f"https://pypi.org/pypi/{pack.split(' ')[0]}/json/")
 
         if packinfo.status == 404:
             return "error"
 
         packinfo = json.loads(packinfo.data.decode())
-
         inst = self.__installPackageDependencies(packinfo, http, pack)
 
-        if inst:
-            return f"\033[94m{packinfo['info']['name']}=={packinfo['info']['version']} already installled"
-        
-        return f"{packinfo['info']['name']}=={packinfo['info']['version']}"
+        ret = [f"{packinfo['info']['name']}=={inst[2]} ({byteCalc(inst[1])})"]
+
+        addDependencies(f"{packinfo['info']['name']}=={inst[2]}", self.__dev)
+
+        if packinfo['info']['requires_dist']:
+            ret.append(self.__dependenciesLoop)
+            ret.append([packinfo['info']['requires_dist'], self.__dependencies, http, spacer + 3])
+
+        if inst[0]:
+            ret[0] = f"\033[94m{packinfo['info']['name']}=={inst[2]} already installled ({byteCalc(inst[1])})"
+
+            return ret 
+            
+        return ret
         
 
     def __remote_package(self, pack:str, http) -> dict:
@@ -196,25 +260,19 @@ class Installer:
         if packinfo['info']['requires_dist']:
             print(f"\n\033[93m{packName} dependencies:\033[37m")
 
-            for i in packinfo['info']['requires_dist']:
-                if ('; extra' in i): 
-                    continue
-
-                print(" " * 3, i.split(' ')[0], end="\r")
-                
-                a = self.__dependencies(i, http)
-                
-                print(" " * 3, f"\033[92m{a}\033[37m")
-
-            print('\n')
+            self.__dependenciesLoop(packinfo['info']['requires_dist'], self.__dependencies, http, 3)
         
+        print("\n")
         return packinfo
 
 
     def run(self, args:list):
         http = urllib3.PoolManager()
+        
+        commands = listArgsInstall(args[2:])
+        self.__dev = commands[1]
 
-        for i in args[2:]:
+        for i in commands[0]:
             res = self.__remote_package(i, http)
 
             if res == {}:
