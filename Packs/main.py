@@ -1,15 +1,17 @@
-from Commands import install
+import checkRequirements
+from Commands import install, remove
 import sys
 import os
 
 if __name__ == '__main__':
     if hasattr(sys, 'real_prefix'):
+       
         commands = {
             'install': install.Installer, 
             'i': install.Installer, 
-            'uninstall': 'uninstall', 
-            'remove': 'uninstall', 
-            'rm': 'uninstall'
+            'uninstall': remove.Remover, 
+            'remove': remove.Remover, 
+            'rm': remove.Remover
         }
 
         if len(sys.argv) <= 2:

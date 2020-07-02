@@ -1,3 +1,12 @@
+def openToCreate() -> None:
+    f = open("requirements.txt", "w")
+    f.close()
+
+    f = open("requirements-dev.txt", "w")
+    f.close()
+
+
+
 def addDependencies(dependency:str, dev:bool = False) -> None:
     """
     Add new dependencies to dependencies file (requirements)
