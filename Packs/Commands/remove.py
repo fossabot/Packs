@@ -45,6 +45,10 @@ class Remover:
             except PermissionError:
                 shutil.rmtree(i)
 
+            except FileNotFoundError:
+                pass
+
+
     def __getEnvScript(self) -> str:
         if os.path.exists(sys.prefix + "/bin"):
             return sys.prefix + "/bin/"
@@ -53,20 +57,39 @@ class Remover:
             return sys.prefix + "\\Scripts\\"
 
 
+    def __eggRemove(self, dist:pr.Distribution) -> list:
+        if dist.egg_info:
+            d = dist.egg_info.replace('\\', '/').split('/')
+
+            if d[len(d) - 1] == 'EGG-INFO':
+                d.pop()
+
+            return['/'.join(d)]
+        return []
+
+
     def __showRecorded(self, dist:pr.Distribution) -> list:
         paths = []
 
-        for i in dist.get_metadata_lines("RECORD"):
-            i = i.split(',')[0]
+        try:
+            rec = dist.get_metadata_lines("RECORD")
 
-            if ".." in i:
-                continue
+            for i in rec:
+                i = i.split(',')[0]
 
-            i = i.split('/')
+                if ".." in i:
+                    continue
 
-            if dist.location + "/" + i[0] not in paths:
-                paths.append(os.path.join(dist.location + "/", i[0]))
+                i = i.split('/')
+
+                if dist.location + "/" + i[0] not in paths:
+                    paths.append(os.path.join(dist.location + "/", i[0]))
+
+        except FileNotFoundError:
+            paths = self.__eggRemove(dist)
+            paths.append(dist.egg_info)
         
+
         return paths
 
 
@@ -110,7 +133,7 @@ class Remover:
 
             if opt == 'y':
                 self.__removeFiles(paths)
+                print(f"\033[92m{i} was successfully removed\033[37m")
 
-            print(f"\033[92m{i} was successfully removed\033[37m")
 
             print('\n')
