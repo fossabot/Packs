@@ -19,6 +19,7 @@ def getVersions(lists:list, releases:dict) -> dict:
     dict
         dictionary of all releases belonging to the list of versions
     """
+
     r = {}
 
     for i in lists:
@@ -42,6 +43,7 @@ def equals(version:str, releases:dict) -> list:
     list
         desired release content
     """
+
     vx = version.replace("==", "").replace("(", '').replace(")", '').replace(" ", '')
     
     r = []
@@ -75,6 +77,7 @@ def moreThan(version:str, releases:dict) -> dict:
     list
         a releases that more than version specified
     """
+
     versions = list(releases.keys())
     vs = version.replace(">", '').replace("=", '')
 
@@ -130,6 +133,7 @@ def lessThan(version:str, releases:dict) -> dict:
     list
         a releases that less than version specified
     """
+
     versions = list(releases.keys())
     vs = version.replace("<", '').replace("=", '')
 
@@ -216,6 +220,7 @@ def combine(lists:list) -> list:
     list
         a crossed list 
     """
+    
     l = []
 
     for i in lists[0]:
@@ -245,6 +250,7 @@ def combineDict(lists:list) -> dict:
     list
         a crossed dictionary 
     """
+
     l = {}
 
     for i in lists[0]:
@@ -272,6 +278,7 @@ def byteCalc(bytes:int) -> str:
     str
         a byte converted with yours measure 
     """
+    
     if bytes >= 100000:
         return f"{(bytes / 1000000):.2f} MB"
 

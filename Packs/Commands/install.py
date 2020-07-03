@@ -1,6 +1,6 @@
-from Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
-from Utils.dependenciesControl import addDependencies, openToCreate
-from Utils.cliControl import listArgsInstall
+from Packs.Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
+from Packs.Utils.dependenciesControl import addDependencies, openToCreate
+from Packs.Utils.cliControl import listArgsInstall
 from typing import Callable
 import pkg_resources as pr
 import subprocess

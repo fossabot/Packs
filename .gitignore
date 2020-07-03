@@ -3,3 +3,7 @@ __pycache__/
 requirements.txt
 requirements-dev.txt
 
+*.egg
+Packs.egg-info/
+build
+dist

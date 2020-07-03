@@ -24,6 +24,7 @@ def addDependencies(dependency:str, dev:bool = False) -> None:
     >>> addDependencies('package==1.2.3', False)
     None
     """
+    
     fil = 'requirements-dev.txt' if dev else 'requirements.txt'
     lines = []
     

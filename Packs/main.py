@@ -1,9 +1,10 @@
-import checkRequirements
-from Commands import install, remove
+import Packs.checkRequirements
+from Packs.Commands import install, remove
 import sys
 import os
 
-if __name__ == '__main__':
+
+def main():
     if hasattr(sys, 'real_prefix'):
        
         commands = {
@@ -36,3 +37,8 @@ if __name__ == '__main__':
 
     else:
         print("\n\033[91mPlease activate the virtual environment to use Packs\n\033[37m")
+
+
+
+if __name__ == '__main__':
+    main()
