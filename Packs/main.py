@@ -23,7 +23,7 @@ def main():
             'list': listPackage.Lister,
         }
 
-        if len(sys.argv) <= 2 and (sys.argv[1] != 'ls' and sys.argv[1] != 'list'):
+        if len(sys.argv) == 1 or (len(sys.argv) <= 2 and (sys.argv[1] != 'ls' and sys.argv[1] != 'list')):
             print("\nChoose an option and package\n")
 
             print('\033[92m install   <package>\033[37m  to install a package')

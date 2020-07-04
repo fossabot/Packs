@@ -35,4 +35,4 @@ class Lister:
 				print(f"{name}=={i.version}")
 
 			else:
-				print(f"{name:25}\t{i.version}")
+				print(f"{name:30}\t{i.version}")
