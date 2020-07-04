@@ -126,3 +126,37 @@ def listArgsInstall(commands:list) -> list:
 
     return [commands, d, u]
 
+
+def listArgsRemove(commands:list) -> list:
+    y = False
+    args = ['-y', '--yes', '-r']
+
+    commands = [i.lower() for i in commands]
+
+    if '-y' in commands or '--yes' in commands:
+        y = True
+
+    if '-r' in commands:
+        commands = fileAarg(commands)
+
+    commands = [i for i in commands if i not in args]
+
+    return [commands, y]
+
+
+def listArgsList(commands:list) -> list:
+    c = False
+    f = False
+    args = ['-c', '-f', '--color', '--freeze']
+
+    commands = [i.lower() for i in commands]
+
+    if '-f' in commands or '--freeze' in commands:
+        f = True
+
+    if '-c' in commands or '--color' in commands:
+        c = True
+
+    commands = [i for i in commands if i not in args]
+
+    return [commands, f, c]

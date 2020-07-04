@@ -1,12 +1,21 @@
 import pkg_resources as pr
 import platform
+import shutil
 import sys
 import os
-import shutil
+
+try:
+    from Packs.Utils.cliControl import listArgsRemove, pureDependency
+    from Packs.Utils.dependenciesControl import removeDependency, openToCreate
+    
+except ModuleNotFoundError:
+    from Utils.cliControl import listArgsRemove, pureDependency
+    from Utils.dependenciesControl import removeDependency, openToCreate
 
 
 class Remover:
     def __init__(self, args:list):
+        openToCreate()
         self.run(args)
 
 
@@ -37,16 +46,19 @@ class Remover:
         return valids
 
     
-    def __removeFiles(self, paths: list) -> None:
+    def __removeFiles(self, paths: list, dist:pr.Distribution) -> None:
         for i in paths:
+            if os.path.isdir(i):
+                shutil.rmtree(i)
+                continue
+
             try:
                 os.remove(i)
 
-            except PermissionError:
-                shutil.rmtree(i)
-
             except FileNotFoundError:
                 pass
+        
+        removeDependency(f"{dist.key}=={dist.version}")
 
 
     def __getEnvScript(self) -> str:
@@ -89,7 +101,6 @@ class Remover:
             paths = self.__eggRemove(dist)
             paths.append(dist.egg_info)
         
-
         return paths
 
 
@@ -117,8 +128,15 @@ class Remover:
 
 
     def run(self, args:list) -> None:
-        print('\n')
-        for i in args[2:]:
+        comm = listArgsRemove(args[2:])
+
+        commands = comm[0]
+        yes = comm[1]
+
+        print()
+        for i in commands:
+            i = pureDependency(i)
+
             try:
                 dis = pr.get_distribution(i)
             
@@ -129,11 +147,17 @@ class Remover:
             print(f"\033[93mDo you want to remove {i} [y, n]\033[37m")
 
             paths = self.__getFilesToRemove(dis)
+            
+            if yes:
+                self.__removeFiles(paths, dis)
+                print(f"\033[92m{i} was successfully removed\033[37m\n")
+                continue
+
             opt = input(">>> ")
 
             if opt == 'y':
-                self.__removeFiles(paths)
+                self.__removeFiles(paths, dis)
                 print(f"\033[92m{i} was successfully removed\033[37m")
 
 
-            print('\n')
+            print()

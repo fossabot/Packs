@@ -1,9 +1,14 @@
-def openToCreate() -> None:
-    f = open("requirements.txt", "w")
-    f.close()
+import os
 
-    f = open("requirements-dev.txt", "w")
-    f.close()
+
+def openToCreate() -> None:
+    if not os.path.exists('requirements.txt'):
+        f = open("requirements.txt", "w")
+        f.close()
+
+    if not os.path.exists('requirements-dev.txt'):
+        f = open("requirements-dev.txt", "w")
+        f.close()
 
 
 
@@ -27,7 +32,7 @@ def addDependencies(dependency:str, dev:bool = False) -> None:
     
     fil = 'requirements-dev.txt' if dev else 'requirements.txt'
     lines = []
-    
+
     with open(fil, 'r') as f:
         lines = [i.replace('\n', '').lower() for i in f.readlines() if i != '\n']
 
@@ -40,4 +45,26 @@ def addDependencies(dependency:str, dev:bool = False) -> None:
 
         if b and dependency not in lines:
             f.write(f"{dependency}\n")
+
+
+def notInList(filer:str, dependency:str) -> None:
+    lines = []
+    try:
+        with open(filer, 'r') as f:
+            lines = f.readlines()
+
+    except Exception as e:
+        print(e)
+        return
+
+    with open(filer, 'w') as f:
+        for i in lines:
+            if i.lower().replace('\n', '').replace('\r', '') == dependency.lower():
+                continue
+
+            f.write(i)
     
+
+def removeDependency(dependency:str) -> None:
+    notInList('requirements.txt', dependency)
+    notInList('requirements-dev.txt', dependency)

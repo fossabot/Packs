@@ -1,8 +1,7 @@
-from Packs.Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
-from Packs.Utils.dependenciesControl import addDependencies, openToCreate
-from Packs.Utils.cliControl import listArgsInstall
+
 from typing import Callable
 import pkg_resources as pr
+from time import sleep
 import subprocess
 import itertools
 import tempfile
@@ -22,12 +21,26 @@ except ModuleNotFoundError:
     print("\n\033[91mPlease activate the virtual environment to use Packs\n\033[37m")
     sys.exit(0)
 
+try:
+    from Packs.Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
+    from Packs.Utils.dependenciesControl import addDependencies, openToCreate, removeDependency
+    from Packs.Utils.cliControl import listArgsInstall, pureDependency
+    from Packs.Commands import remove
+
+except ModuleNotFoundError:
+    from Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
+    from Utils.dependenciesControl import addDependencies, openToCreate, removeDependency
+    from Utils.cliControl import listArgsInstall, pureDependency
+    from Commands import remove
+
 
 class Installer:
     def __init__(self, args:list):
         temp = tempfile.gettempdir()
         self.__deps = []
         self.__dev = False
+        self.__u = False
+        
         openToCreate()
 
         if not os.path.exists(temp + "/packsX"):
@@ -78,7 +91,7 @@ class Installer:
 
     def __wheelInstall(self, name:str, filewhl:str) -> bool:
         try:
-            pr.get_distribution(name)
+            pack = pr.get_distribution(name)
 
         except Exception:
             scheme = get_scheme(
@@ -98,14 +111,37 @@ class Installer:
             )
 
             return False
+
+        if self.__u:
+            removeDependency(f"{pack.key}=={pack.version}")
+
+            scheme = get_scheme(
+                name,
+                user=False,
+                home=None,
+                root=None,
+                prefix=None,
+            )
+
+            install_wheel(
+                name,
+                filewhl,
+                scheme=scheme,
+                req_description=name,
+                pycompile=True,
+            )
+
+            return False
+
         return True
 
 
     def __tarInstall(self, name:str, filewhl:str) -> bool:
         temp = tempfile.gettempdir()
+        p = os.getcwd()
 
         try:
-            pr.get_distribution(name)
+            pack = pr.get_distribution(name)
 
         except Exception:
             with tarfile.open(filewhl, 'r:gz') as tar:
@@ -116,6 +152,24 @@ class Installer:
             FNULL = open(os.devnull, 'w')
 
             subprocess.run(['python', 'setup.py', 'install'], stdout=FNULL, stderr=subprocess.PIPE)
+
+            os.chdir(p)
+            return False
+
+        if self.__u:
+            removeDependency(f"{pack.key}=={pack.version}")
+
+            with tarfile.open(filewhl, 'r:gz') as tar:
+                tar.extractall(temp + "/packsX")
+
+            os.chdir(filewhl.replace(".tar.gz", ''))
+
+            FNULL = open(os.devnull, 'w')
+
+            subprocess.run(['python', 'setup.py', 'install'], stdout=FNULL, stderr=subprocess.PIPE)
+            
+            os.chdir(p)
+
             return False
 
         return True
@@ -175,7 +229,6 @@ class Installer:
         remote = self.__checkTypeInstallation(vers)
 
         print(f"\n\033[92mPackage {res['info']['name']} found in version {v} ({byteCalc(remote[0]['size'])})\033[37m")
-        addDependencies(f"{res['info']['name']}=={v}", self.__dev)
 
         ### DOWNLOAD
 
@@ -184,10 +237,12 @@ class Installer:
         print(f"\033[92mDownload finish           \033[37m")
 
         ### INSTALL 
+
         print(f"\033[95m\nInstalling {res['info']['name']}\033[37m", end='\r')
         whl = remote[1](res['info']['name'], temp + f"/packsX/{remote[0]['filename']}")
         
         if not whl:
+            addDependencies(f"{res['info']['name']}=={v}", self.__dev)
             print(f"\033[92m{res['info']['name']} was successfully installed \033[37m")
 
         else:
@@ -228,8 +283,6 @@ class Installer:
 
         ret = [f"{packinfo['info']['name']}=={inst[2]} ({byteCalc(inst[1])})"]
 
-        addDependencies(f"{packinfo['info']['name']}=={inst[2]}", self.__dev)
-
         if packinfo['info']['requires_dist']:
             ret.append(self.__dependenciesLoop)
             ret.append([packinfo['info']['requires_dist'], self.__dependencies, http, spacer + 3])
@@ -239,6 +292,7 @@ class Installer:
 
             return ret 
             
+        addDependencies(f"{packinfo['info']['name']}=={inst[2]}", self.__dev)
         return ret
         
 
@@ -271,8 +325,12 @@ class Installer:
         
         commands = listArgsInstall(args[2:])
         self.__dev = commands[1]
+        self.__u = commands[2]
 
         for i in commands[0]:
+            if self.__u:
+                remove.Remover(['', '', pureDependency(i), '--yes'])
+            
             res = self.__remote_package(i, http)
 
             if res == {}:
