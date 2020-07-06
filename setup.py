@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
+import Packs
 
 
-with open('README.md', 'r') as f:
+with open('README_PYPI.md', 'r') as f:
     ld = f.read()
 
 
 setup(
     name="Packs",
-    version="1.2.3",
+    version=Packs.__version__,
     long_description=ld,
     description="A package installer",
     long_description_content_type='text/markdown',

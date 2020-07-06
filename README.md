@@ -10,15 +10,15 @@ No momento de instalação de qualquer pacote é possível adicionar a flag --de
 
 ## Instalação
 
-Até o momento o Packs não está no PyPI porem é possível baixar seu código fonte atráves do GitHub e inclui-lo em seu projeto.
+pip install packs
 
 ## Uso 
 
 Para instalar qualquer pacote você pode usar os seguintes comandos e flags:
 
 ```
-python main.py install <Nome do pacote>
-python main.py i <Nome do pacote>
+packs install <Nome do pacote>
+packs i <Nome do pacote>
 
 -u para atualizar
 --dev ou -d para pacotes de produção
@@ -28,13 +28,23 @@ python main.py i <Nome do pacote>
 Para remover qualquer pacote use os comando a seguir e as flags:
 
 ```
-python main.py remove <Nome do pacote>
-python main.py uninstall <Nome do pacote>
-python main.py rm <Nome do pacote>
+packs remove <Nome do pacote>
+packs uninstall <Nome do pacote>
+packs rm <Nome do pacote>
 
 --yes ou -y para aceitar tudo
+-r <Arquivo> para remover os pacotes atráves de uma arquivo
 ```
 
+Para listar os pacotes instalados use estes comandos e as flags:
+
+```
+packs ls
+packs list
+
+--freeze ou -f para listar no formato freeze
+--color ou -c para remover as cores
+```
 
 <strong>
     <p align="center" style="text-align: center;">Vupy social networking© 2020</p>
