@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://github.com/Vupy/Packs/blob/master/Packs/logo/logo.png" width="256" height="256"/>
+    <!-- <img src="https://github.com/Vupy/Packs/blob/master/Packs/logo/logo.png" width="256" height="256"/> -->
 </p>
 
 # Packs
