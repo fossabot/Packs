@@ -13,8 +13,8 @@ pip install packs
 To install any package, you can use the following commands and flags:
 
 ```
-python main.py install <Package name>
-python main.py i <Package name>
+packs install <Package name>
+packs i <Package name>
 
 -u To update
 --dev or -d To development packages
@@ -24,9 +24,9 @@ python main.py i <Package name>
 To remove any package use the following commands and flags:
 
 ```
-python main.py remove <Package name>
-python main.py uninstall <Package name>
-python main.py rm <Package name>
+packs remove <Package name>
+packs uninstall <Package name>
+packs rm <Package name>
 
 --yes or -y to accept all
 -r <file path> to remove the packages through a file

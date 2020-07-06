@@ -1,4 +1,9 @@
 site_name: Packs
 repo_url: https://github.com/Vupy/Packs
+nav: 
+  - Home: index.md
+edit_uri: null
 repo_name: GitHub
 site_author: Miguel Vieira Colombo
+theme: readthedocs
+copyright: BSD-3-Clause License

@@ -1,3 +1,9 @@
+<p align="center">
+    <img src="https://raw.githubusercontent.com/Vupy/Packs/master/Packs/logo/logo.png" width="256" height="256"/>
+</p>
+
+[![Documentation Status](https://readthedocs.org/projects/packs/badge/?version=latest)](https://packs.readthedocs.io/en/latest/?badge=latest)
+
 # Packs
 
 Packs is a package installer that will help you manage your dependencies in a practical way.
@@ -6,11 +12,33 @@ for that, packs automatically manage their packages including them in the depend
 
 ## Installation
 
-´´´
+> Packs requires python version >= 3.5 and Urllib3
+
+```
 pip install packs
-´´´
+```
 
 ## Usage
+
+Before starting any installation or removal of packages through the Packs, two files will be generated:
+
+* requirements.txt 
+> Production dependency
+* requirements-dev.txt 
+> Development dependency
+
+As you add or remove dependencies for a project through the Packs, it will add or remove the dependencies you changed. Example
+
+packs i pillow -d
+
+After running the command above, the Packs will add the Pillow package to the requirements-dev.txt (-d) file with its respective version of Pillow.
+
+**Note** that the Packs does not distinguish between upper and lower case, that is, commands can be written in any format.
+
+* packs insTall Pillow  -> OK
+* packs Install Pillow  -> OK
+* packs InStAlL Pillow  -> OK
+
 
 To install any package, you can use the following commands and flags:
 
@@ -19,7 +47,7 @@ python main.py install <Package name>
 python main.py i <Package name>
 
 -u To update
---dev or -d To development packages
+-d or --dev To development packages
 -r <file path> to install the packages through a file
 ```
 
