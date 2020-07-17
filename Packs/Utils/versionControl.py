@@ -292,7 +292,7 @@ def lenfer(txt:str) -> int:
     return int(txt)
 
 
-def validVersionPython(version: str) -> bool:
+def validVersionPython(version:str) -> bool:
     p = platform.python_version_tuple()[:2]
     p = lenfer("".join(p))
 

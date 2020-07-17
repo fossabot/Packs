@@ -156,7 +156,7 @@ class Remover:
             
             if yes:
                 self.__removeFiles(paths, dis)
-                print(f"{i} was successfully removed\n", 'green')
+                Logger(f"{i} was successfully removed\n", 'green')
                 continue
 
             opt = input(">>> ")
@@ -165,5 +165,4 @@ class Remover:
                 self.__removeFiles(paths, dis)
                 Logger(f"{i} was successfully removed", 'green')
 
-
-            print()
+            Logger()

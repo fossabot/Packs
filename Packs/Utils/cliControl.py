@@ -164,3 +164,18 @@ def listArgsList(commands:list) -> list:
     commands = [i for i in commands if i not in args]
 
     return [commands, f, c]
+
+
+def listArgsCheck(commands:list) -> list:
+    l = False
+
+    args = ['-l', '--local']
+
+    commands = [i.lower() for i in commands]
+
+    if '-l' in commands or '--local' in commands:
+        l = True
+
+    commands = [i for i in commands if i not in args]
+    
+    return [commands, l]

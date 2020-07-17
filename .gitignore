@@ -7,3 +7,5 @@ requirements-dev.txt
 Packs.egg-info/
 build
 dist
+
+.vscode/
