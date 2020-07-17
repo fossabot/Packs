@@ -5,7 +5,7 @@ try:
     import Packs.checkRequirements
     from Packs.Commands import install, remove, listPackage
 
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     import checkRequirements
     from Commands import install, remove, listPackage
 
@@ -46,7 +46,7 @@ def main():
             print('\033[91mInvalid command\033[37m')
 
         else:
-            commands[sys.argv[1].lower()](sys.argv)
+            commands[sys.argv[1].lower()](sys.argv, cli=True)
 
     else:
         print("\n\033[91mPlease activate the virtual environment to use Packs\n\033[37m")

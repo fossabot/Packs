@@ -7,16 +7,22 @@ import os
 try:
     from Packs.Utils.cliControl import listArgsRemove, pureDependency
     from Packs.Utils.dependenciesControl import removeDependency, openToCreate
+    from Packs.Utils.logger import Logger
     
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     from Utils.cliControl import listArgsRemove, pureDependency
     from Utils.dependenciesControl import removeDependency, openToCreate
+    from Utils.logger import Logger
 
 
 class Remover:
-    def __init__(self, args:list):
+    def __init__(self, args:list, cli=False):
         openToCreate()
-        self.run(args)
+        if cli:
+            self.run(args[2:])
+
+        else:
+            self.run(args)
 
 
     def __listScripts(self, binpath:str, script:str, gui:bool = False) -> list:
@@ -122,18 +128,18 @@ class Remover:
         paths = self.__validadePath(paths)
 
         for i in paths:
-            print(" " * 3, i)
+            Logger(f"{' ' * 3} {i}")
 
         return paths
 
 
     def run(self, args:list) -> None:
-        comm = listArgsRemove(args[2:])
+        comm = listArgsRemove(args)
 
         commands = comm[0]
         yes = comm[1]
 
-        print()
+        Logger()
         for i in commands:
             i = pureDependency(i)
 
@@ -141,23 +147,23 @@ class Remover:
                 dis = pr.get_distribution(i)
             
             except pr.DistributionNotFound:
-                print(f"\033[91mERROR: package {i} not found\033[37m")
+                Logger(f"ERROR: package {i} not found", 'red')
                 continue
 
-            print(f"\033[93mDo you want to remove {i} [y, n]\033[37m")
+            Logger(f"Do you want to remove {i} [y, n]", 'yellow')
 
             paths = self.__getFilesToRemove(dis)
             
             if yes:
                 self.__removeFiles(paths, dis)
-                print(f"\033[92m{i} was successfully removed\033[37m\n")
+                print(f"{i} was successfully removed\n", 'green')
                 continue
 
             opt = input(">>> ")
 
             if opt == 'y':
                 self.__removeFiles(paths, dis)
-                print(f"\033[92m{i} was successfully removed\033[37m")
+                Logger(f"{i} was successfully removed", 'green')
 
 
             print()

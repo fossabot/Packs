@@ -57,9 +57,7 @@ def checkfiles(fileR:str, comp:list) -> list:
                     comp.append(j)
 
     except FileNotFoundError:
-        print(f'\033[92mERROR file {fileR} not found\033[37m')
-        return []
-
+        print(f'\033[91mERROR file {fileR} not found\033[37m')
 
     return comp
 

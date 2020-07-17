@@ -2,20 +2,26 @@ import pkg_resources as pr
 
 try:
 	from Packs.Utils.cliControl import listArgsList
+	from Packs.Utils.logger import Logger
 
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
 	from Utils.cliControl import listArgsList
+	from Utils.logger import Logger
 
 
 class Lister:
-	def __init__(self, commands):
-		self.run(commands)
+	def __init__(self, commands, cli=False):
+		if cli:
+			self.run(commands[2:])
+			
+		else:
+			self.run(commands)
 
 
 	def run(self, commands):
 		packs = pr.working_set
 
-		commands = listArgsList(commands[2:])
+		commands = listArgsList(commands)
 
 		color = commands[2]
 		freeze = commands[1]
@@ -35,4 +41,4 @@ class Lister:
 				print(f"{name}=={i.version}")
 
 			else:
-				print(f"{name:30}\t{i.version}")
+				print(f"{name:45}\t{i.version}")

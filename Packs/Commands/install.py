@@ -18,24 +18,26 @@ try:
     import wheel
 
 except ModuleNotFoundError:
-    print("\n\033[91mPlease activate the virtual environment to use Packs\n\033[37m")
+    print("\033[91m\nPlease activate the virtual environment to use Packs\n\033[37m")
     sys.exit(0)
 
 try:
     from Packs.Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
     from Packs.Utils.dependenciesControl import addDependencies, openToCreate, removeDependency
     from Packs.Utils.cliControl import listArgsInstall, pureDependency
+    from Packs.Utils.logger import Logger
     from Packs.Commands import remove
 
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     from Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
     from Utils.dependenciesControl import addDependencies, openToCreate, removeDependency
     from Utils.cliControl import listArgsInstall, pureDependency
+    from Utils.logger import Logger
     from Commands import remove
 
 
 class Installer:
-    def __init__(self, args:list):
+    def __init__(self, args:list, cli=False):
         temp = tempfile.gettempdir()
         self.__deps = []
         self.__dev = False
@@ -46,7 +48,11 @@ class Installer:
         if not os.path.exists(temp + "/packsX"):
             os.mkdir(temp + "/packsX")
 
-        self.run(args)
+        if (cli):
+            self.run(args[2:])
+            
+        else:
+            self.run(args)
 
 
     def __normalizeVersion(self, version:str, res:list) -> list:
@@ -202,7 +208,7 @@ class Installer:
         vx = vers.pop()
 
         if vers == "ErrorR":
-            print("\033[91mERROR there is no version that satisfies the condition\033[37m")
+            Logger("ERROR there is no version that satisfies the condition", 'red')
             return
 
         if vers == "ErrorV":
@@ -220,7 +226,7 @@ class Installer:
         v = vers.pop()
 
         if vers == "ErrorR":
-            print("\033[91mERROR there is no version that satisfies the condition\033[37m")
+            Logger("ERROR there is no version that satisfies the condition", 'red')
             return
 
         if vers == "ErrorV":
@@ -228,25 +234,25 @@ class Installer:
         
         remote = self.__checkTypeInstallation(vers)
 
-        print(f"\n\033[92mPackage {res['info']['name']} found in version {v} ({byteCalc(remote[0]['size'])})\033[37m")
+        Logger(f"\nPackage {res['info']['name']} found in version {v} ({byteCalc(remote[0]['size'])})", 'green')
 
         ### DOWNLOAD
 
-        print(f"\033[95m\nDownloading {res['info']['name']}\033[37m", end='\r')
+        Logger(f"\nDownloading {res['info']['name']}", 'pink', end='\r')
         self.__downloadPackage(remote[0]['url'], temp + f"/packsX/{remote[0]['filename']}", http)
-        print(f"\033[92mDownload finish           \033[37m")
+        Logger(f"{'Download finish':50}", 'green')
 
         ### INSTALL 
 
-        print(f"\033[95m\nInstalling {res['info']['name']}\033[37m", end='\r')
+        Logger(f"\nInstalling {res['info']['name']}", 'pink', end='\r')
         whl = remote[1](res['info']['name'], temp + f"/packsX/{remote[0]['filename']}")
         
         if not whl:
             addDependencies(f"{res['info']['name']}=={v}", self.__dev)
-            print(f"\033[92m{res['info']['name']} was successfully installed \033[37m")
+            Logger(f"{res['info']['name']} was successfully installed", 'green')
 
         else:
-            print(f"\033[94m{res['info']['name']} already installled \033[37m")
+            Logger(f"{res['info']['name']} already installled", 'blue')
 
         return remote[0]
 
@@ -262,11 +268,11 @@ class Installer:
             i = i.split(" ; ")[0]
             self.__deps.append(i.split(' ')[0])
 
-            print(" " * spacer, i.split(' ')[0], end="\r")
+            Logger(f"{' ' * spacer}{i.split(' ')[0]}", end="\r")
             
             a = fun(i, http, spacer)
             
-            print(" " * spacer, f"\033[92m{a[0]}\033[37m")
+            Logger(f"{' ' * spacer}{a[0]}", 'green')
 
             if len(a) > 1:
                 a[1](*a[2])
@@ -302,34 +308,39 @@ class Installer:
         packinfo = http.request("GET", f"https://pypi.org/pypi/{packName}/json/")
             
         if packinfo.status == 404:
-            print(f"\n\033[91mPackage {packName} not found\033[37m")
+            Logger(f"Package {packName} not found", 'red')
             return {}
 
         packinfo = json.loads(packinfo.data.decode())
+
+        if packinfo['urls'] == []:
+            Logger(f"Package {packName} don't have a version for install", 'red')
+            return {}
+
         pac = self.__installPackage(packinfo, http, pack)
 
         if pac == 'error':
             return
                 
         if packinfo['info']['requires_dist']:
-            print(f"\n\033[93m{packName} dependencies:\033[37m")
+            Logger(f"\n{packName} dependencies:", 'yellow')
 
             self.__dependenciesLoop(packinfo['info']['requires_dist'], self.__dependencies, http, 3)
         
-        print("\n")
+        Logger("\n")
         return packinfo
 
 
     def run(self, args:list):
         http = urllib3.PoolManager()
         
-        commands = listArgsInstall(args[2:])
+        commands = listArgsInstall(args)
         self.__dev = commands[1]
         self.__u = commands[2]
 
         for i in commands[0]:
             if self.__u:
-                remove.Remover(['', '', pureDependency(i), '--yes'])
+                remove.Remover([pureDependency(i), '--yes'])
             
             res = self.__remote_package(i, http)
 
