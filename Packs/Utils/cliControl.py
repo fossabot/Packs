@@ -42,18 +42,24 @@ def checkfiles(fileR:str, comp:list) -> list:
         a list of commands with the contents of the file
     """
 
-    with open(fileR, 'r') as f:
-        for j in f.readlines():
-            b = True
+    try:
+        with open(fileR, 'r') as f:
+            for j in f.readlines():
+                b = True
 
-            for i in comp:
-                if pureDependency(i) == pureDependency(j):
-                    b = False
-                    break
+                for i in comp:
+                    if pureDependency(i) == pureDependency(j):
+                        b = False
+                        break
 
-            if b:
-                j = j.replace('\n', '').replace('\r', '')
-                comp.append(j)
+                if b:
+                    j = j.replace('\n', '').replace('\r', '')
+                    comp.append(j)
+
+    except FileNotFoundError:
+        print(f'\033[92mERROR file {fileR} not found\033[37m')
+        return []
+
 
     return comp
 
