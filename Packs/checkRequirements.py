@@ -1,4 +1,4 @@
-from __init__ import __version__
+
 import subprocess
 import json
 
@@ -9,6 +9,12 @@ try:
 except ModuleNotFoundError:
     print("\033[91mUrllib3 Not installed. We will install for you ;)\033[37m")
     subprocess.run(['pip', 'install', 'urllib3'], stdin=None, stdout=None)
+
+try:
+	from __init__ import __version__
+	
+except ModuleNotFoundError:
+	from Packs import __version__
 
 
 current = int(''.join(__version__.split('.')))

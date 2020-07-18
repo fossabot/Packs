@@ -1,5 +1,5 @@
 class Logger:
-    def __init__(self, text:str = '', colors:str = 'normal', end:str = "\n") -> None:
+    def __init__(self, text:str = '', colors:str = 'normal', end:str = "\n", silence:bool = False) -> None:
         colorsX = {
             'normal': '{text}',
             'red': '\033[91m{text}\033[37m',
@@ -10,7 +10,8 @@ class Logger:
             'yellow': '\033[93m{text}\033[37m'
         }
 
-        print(colorsX[colors].format(text=text), end=end)
+        if not silence:
+            print(colorsX[colors].format(text=text), end=end)
 
 
 if __name__ == "__main__":

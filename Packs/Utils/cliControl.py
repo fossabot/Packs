@@ -151,7 +151,9 @@ def listArgsRemove(commands:list) -> list:
 def listArgsList(commands:list) -> list:
     c = False
     f = False
-    args = ['-c', '-f', '--color', '--freeze']
+    o = False
+
+    args = ['-c', '-f', '--color', '--freeze', '-o', '--output']
 
     commands = [i.lower() for i in commands]
 
@@ -161,9 +163,12 @@ def listArgsList(commands:list) -> list:
     if '-c' in commands or '--color' in commands:
         c = True
 
+    if '-o' in commands or '--output' in commands:
+        o = True
+
     commands = [i for i in commands if i not in args]
 
-    return [commands, f, c]
+    return [commands, f, c, o]
 
 
 def listArgsCheck(commands:list) -> list:

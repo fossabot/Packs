@@ -43,6 +43,8 @@ def main():
 
             print('\033[92m list                      \033[37m  to list all packages')
             print('\033[92m ls                        \033[37m  to list all packages')
+            print('\033[92m -o or --output            \033[37m  to return a list of all packages')
+            print('\033[92m -c or --color             \033[37m  to remove a color output')
             print('\033[92m -f or --freeze            \033[37m  to list all packages in freeze format\n')
 
             print('\033[92m check           <packages>\033[37m  to list all version of a package list')

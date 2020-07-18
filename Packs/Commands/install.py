@@ -1,10 +1,11 @@
-
+from wheel.pep425tags import get_abi_tag
 from typing import Callable
 import pkg_resources as pr
 from time import sleep
 import subprocess
 import itertools
 import tempfile
+import platform
 import tarfile
 import urllib3
 import shutil
@@ -181,14 +182,60 @@ class Installer:
         return True
 
 
+    def __cpythonChecker(self, vers:list) -> list:
+        vs = []
+
+        for i in vers:
+            if i['python_version'] == get_abi_tag():
+                vs.append(i)
+
+        if len(vs) == 0:
+            return vers[0]
+
+        return vs
+
+
+    def __archAndSystemChecker(self, vers:list, typex:str, arc:str) -> list:
+        vs = []
+
+        for i in vers:
+            if typex in i['filename'] and arc in i['filename']:
+                vs.append(i)
+
+        return vs
+
+
+    def  __processerChecker(self, vers:list) -> list:
+        system = platform.system()
+
+        if system == "Windows":
+            typex = "-win32"
+            arc = ""
+
+        elif system == "Linux":
+            typex = "-manylinux"
+            arc = platform.machine()
+
+        else:
+            typex = "-macosx_"
+            arc = platform.machine()
+
+        return self.__archAndSystemChecker(vers, typex, arc)
+
+
     def __checkTypeInstallation(self, vers:list) -> list:
         remote = [i for i in vers if i['url'].endswith('.whl')]
 
         if len(remote) == 0:
             return [vers[0], self.__tarInstall]
 
-        else:
+        elif len(remote) == 1:
             return [remote[0], self.__wheelInstall]
+
+        else:
+            
+            return [self.__cpythonChecker(self.__processerChecker(vers))[0], self.__wheelInstall]
+
 
     
     def __downloadPackage(self, url:str, filew:str, http) -> None:
@@ -331,7 +378,7 @@ class Installer:
         return packinfo
 
 
-    def run(self, args:list):
+    def run(self, args:list) -> None:
         http = urllib3.PoolManager()
         
         commands = listArgsInstall(args)
