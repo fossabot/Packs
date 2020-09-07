@@ -121,7 +121,7 @@ class Remover:
         paths.extend(self.__showRecorded(dist))
 
         for i in console.keys():
-            paths.extend([scriptsDir + str(console['packs']).split('.')[1].split(':')[0] + '.py'])
+            paths.extend([scriptsDir + str(console[i]).split('.')[1].split(':')[0] + '.py'])
             paths.extend(self.__listScripts(scriptsDir, i))
 
         for i in gui.keys():

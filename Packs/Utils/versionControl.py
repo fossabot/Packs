@@ -5,19 +5,19 @@ import platform
 
 def getVersions(lists:list, releases:dict) -> dict:
     """
-    Transform list of versions and releases in dictionary of versions 
+        Transform list of versions and releases in dictionary of versions 
 
-    Parameters
-    ----------
-    lists : list
-        lisf of versions
-    releases : dict
-        dictionary of all releases in one package
+        Parameters
+        ----------
+        lists : list
+            lisf of versions
+        releases : dict
+            dictionary of all releases in one package
 
-    Returns
-    -------
-    dict
-        dictionary of all releases belonging to the list of versions
+        Returns
+        -------
+        dict
+            dictionary of all releases belonging to the list of versions
     """
 
     r = {}
@@ -27,21 +27,42 @@ def getVersions(lists:list, releases:dict) -> dict:
 
     return r
 
+
+def notEquals(version:str, releases:dict) -> dict:
+    vs = version.replace("!", '').replace("=", '').replace(" ", '')
+    rels = {}
+
+
+    for i in releases:
+        p = parse(i)
+
+        if releases[i] == []:
+            continue
+
+        if not i.startswith(vs) and not p.is_devrelease and not p.is_postrelease and not p.is_prerelease:
+            rels[i] = releases[i]
+            
+    l = sorted(rels, key=lambda x: rels[x][0]['upload_time'])
+    rels = getVersions(l, releases)
+
+    return rels
+
+
 def equals(version:str, releases:dict) -> list:
     """
-    Get a specific release 
+        Get a specific release 
 
-    Parameters
-    ----------
-    version : str
-        desired version
-    releases : dict
-        dictionary of all releases in one package
+        Parameters
+        ----------
+        version : str
+            desired version
+        releases : dict
+            dictionary of all releases in one package
 
-    Returns
-    -------
-    list
-        desired release content
+        Returns
+        -------
+        list
+            desired release content
     """
 
     vx = version.replace("==", "").replace("(", '').replace(")", '').replace(" ", '')
@@ -63,19 +84,19 @@ def equals(version:str, releases:dict) -> list:
 
 def moreThan(version:str, releases:dict) -> dict:
     """
-    Get releases thet are more than a specific version 
+        Get releases thet are more than a specific version 
 
-    Parameters
-    ----------
-    version : str
-        desired version
-    releases : dict
-        dictionary of all releases in one package
+        Parameters
+        ----------
+        version : str
+            desired version
+        releases : dict
+            dictionary of all releases in one package
 
-    Returns
-    -------
-    list
-        a releases that more than version specified
+        Returns
+        -------
+        list
+            a releases that more than version specified
     """
 
     versions = list(releases.keys())
@@ -119,19 +140,19 @@ def moreThan(version:str, releases:dict) -> dict:
 
 def lessThan(version:str, releases:dict) -> dict:
     """
-    Get releases thet are less than a specific version 
+        Get releases thet are less than a specific version 
 
-    Parameters
-    ----------
-    version : str
-        desired version
-    releases : dict
-        dictionary of all releases in one package
+        Parameters
+        ----------
+        version : str
+            desired version
+        releases : dict
+            dictionary of all releases in one package
 
-    Returns
-    -------
-    list
-        a releases that less than version specified
+        Returns
+        -------
+        list
+            a releases that less than version specified
     """
 
     versions = list(releases.keys())
@@ -207,18 +228,18 @@ def equalSerie(version:str, releases:list) -> list:
 
 def combine(lists:list) -> list:
     """
-    Cross two lists where the values ​​are equal
- 
+        Cross two lists where the values ​​are equal
+     
 
-    Parameters
-    ----------
-    lists : list
-        list of lists
+        Parameters
+        ----------
+        lists : list
+            list of lists
 
-    Returns
-    -------
-    list
-        a crossed list 
+        Returns
+        -------
+        list
+            a crossed list 
     """
     
     l = []
@@ -237,18 +258,18 @@ def combine(lists:list) -> list:
 
 def combineDict(lists:list) -> dict:
     """
-    Cross two lists where the values ​​are equal
- 
+        Cross two lists where the values ​​are equal
+     
 
-    Parameters
-    ----------
-    lists : list
-        list of dictionary
+        Parameters
+        ----------
+        lists : list
+            list of dictionary
 
-    Returns
-    -------
-    list
-        a crossed dictionary 
+        Returns
+        -------
+        list
+            a crossed dictionary 
     """
 
     l = {}
@@ -265,18 +286,18 @@ def combineDict(lists:list) -> dict:
 
 def byteCalc(bytes:int) -> str:
     """
-    Transform Bytes in MB or KB
- 
+        Transform Bytes in MB or KB
+     
 
-    Parameters
-    ----------
-    bytes : int
-        number of bytes
+        Parameters
+        ----------
+        bytes : int
+            number of bytes
 
-    Returns
-    -------
-    str
-        a byte converted with yours measure 
+        Returns
+        -------
+        str
+            a byte converted with yours measure 
     """
     
     if bytes >= 100000:

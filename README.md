@@ -46,6 +46,15 @@ packs list
 
 --freeze ou -f para listar no formato freeze
 --color ou -c para remover as cores
+--output ou -o para retornar uma lista (python list)
+```
+
+Para ver a lista de versões de um pacote disponíveis on/offline
+
+```
+packs check <Nome do pacote>
+
+--local ou -l para ver se o pacote esta instalado localmente e está atualizado
 ```
 
 <strong>

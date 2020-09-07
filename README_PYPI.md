@@ -40,6 +40,15 @@ packs list
 
 --freeze or -f to list in freeze format
 --color or -c to remove the colors
+--output ou -o to return a list (python list)
+```
+
+To see the list of package versions available on / offline
+
+```
+packs check <Package name>
+
+--local or -l to see if the package is installed locally and is up to date
 ```
 
 

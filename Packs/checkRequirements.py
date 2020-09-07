@@ -13,7 +13,7 @@ except ModuleNotFoundError:
 try:
 	from __init__ import __version__
 	
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
 	from Packs import __version__
 
 

@@ -1,4 +1,4 @@
-from wheel.pep425tags import get_abi_tag
+from sysconfig import get_config_var
 from typing import Callable
 import pkg_resources as pr
 from time import sleep
@@ -12,6 +12,8 @@ import shutil
 import json
 import sys
 import os
+ 
+
 
 try:
     from pip._internal.operations.install.wheel import install_wheel
@@ -23,14 +25,14 @@ except ModuleNotFoundError:
     sys.exit(0)
 
 try:
-    from Packs.Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
+    from Packs.Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython, notEquals)
     from Packs.Utils.dependenciesControl import addDependencies, openToCreate, removeDependency
     from Packs.Utils.cliControl import listArgsInstall, pureDependency
     from Packs.Utils.logger import Logger
     from Packs.Commands import remove
 
 except (ModuleNotFoundError, ImportError):
-    from Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython)
+    from Utils.versionControl import (lessThan, moreThan, equals, byteCalc, combine, equalSerie, validVersionPython, notEquals)
     from Utils.dependenciesControl import addDependencies, openToCreate, removeDependency
     from Utils.cliControl import listArgsInstall, pureDependency
     from Utils.logger import Logger
@@ -43,11 +45,14 @@ class Installer:
         self.__deps = []
         self.__dev = False
         self.__u = False
+        self.__cpythonVersion = None
         
         openToCreate()
 
         if not os.path.exists(temp + "/packsX"):
             os.mkdir(temp + "/packsX")
+
+        self.__getCpythonVersion()
 
         if (cli):
             self.run(args[2:])
@@ -56,7 +61,41 @@ class Installer:
             self.run(args)
 
 
-    def __normalizeVersion(self, version:str, res:list) -> list:
+    def __getCpythonVersion(self) -> None:
+        """
+            Get CPython version and save value on self.__cpythonVersion variable
+
+        """
+
+        number = get_config_var('SOABI')
+
+        if number:
+            number = str(get_config_var('SOABI')).split('-')[1]
+
+            self.__cpythonVersion = f"cp{number}"
+
+
+    def __normalizeVersion(self, version:str, res:dict) -> list:
+        """
+            Filter supported packages version in the package version list
+
+            Parameters
+            ----------
+                version : str
+                    name of package with your supported version
+                res : dict
+                    response from a package's Pypi API
+
+            Returns
+            -------
+            list
+                all subversions of a package version
+
+            >>> __normalizeVersion('package==1.2.3', {"name": "package", "releases": [...], ...})
+            [{"packagetype": "source", "python_version": "py3", ...}, ...]
+
+        """
+
         version = version.lower().replace(res['info']['name'].lower(), '')
         releases = res['releases']
 
@@ -65,6 +104,8 @@ class Installer:
             "==": equals,
             '~': equalSerie,
             '>': moreThan,
+            '!=': notEquals,
+            '!': notEquals,
         }
 
         if "=" in version or ">" in version or "<" in version or "~=" in version:
@@ -97,6 +138,29 @@ class Installer:
 
 
     def __wheelInstall(self, name:str, filewhl:str) -> bool:
+        """
+            Install .whl package
+
+            Parameters
+            ----------
+                name : str
+                    name of package
+                filewhl : str
+                    path of package file
+
+            Returns
+            -------
+            bool
+                whether the package is installed
+
+            >>> __wheelInstall("package", "/tmp/packsX/package.whl")
+            False
+
+            >>> __wheelInstall("package", "/tmp/packsX/package.whl")
+            True
+
+        """
+
         try:
             pack = pr.get_distribution(name)
 
@@ -144,6 +208,29 @@ class Installer:
 
 
     def __tarInstall(self, name:str, filewhl:str) -> bool:
+        """
+            Install .tar package
+
+            Parameters
+            ----------
+                name : str
+                    name of package
+                filewhl : str
+                    path of package file
+
+            Returns
+            -------
+            bool
+                whether the package is installed
+
+            >>> __tarInstall("package", "/tmp/packsX/package.tar")
+            False
+
+            >>> __tarInstall("package", "/tmp/packsX/package.tar")
+            True
+
+        """
+
         temp = tempfile.gettempdir()
         p = os.getcwd()
 
@@ -183,19 +270,72 @@ class Installer:
 
 
     def __cpythonChecker(self, vers:list) -> list:
+        """
+            Find the subversion of a package that supports the installed version of CPython
+
+            Parameters
+            ----------
+                vers : list
+                    List of all subversions of a specific version of a package
+
+            Returns
+            -------
+            List
+                List of Supported subversions
+
+            >>> __cpythonChecker([{"python_version": "cp38"}, {"python_version": "cp37"}, {"python_version": "py3"}])
+            [{"python_version": "cp38"}]
+
+            >>> __cpythonChecker([{"python_version": "cp37"}, {"python_version": "py3"}])
+            [{"python_version": "py3"}]
+
+        """
+
         vs = []
 
         for i in vers:
-            if i['python_version'] == get_abi_tag():
+            if i['python_version'].startswith(self.__cpythonVersion):
                 vs.append(i)
 
         if len(vs) == 0:
-            return vers[0]
+            for i in vers:
+                if i['python_version'] == "py3":
+                    vs.append(i)
+
+            if len(vs) == 0:
+                return [vers[0]]
 
         return vs
 
 
     def __archAndSystemChecker(self, vers:list, typex:str, arc:str) -> list:
+        """
+            Finds a subversion compatible with the OS and its respective architecture
+
+            Parameters
+            ----------
+                vers : list
+                    List of all subversions of a specific version of a package
+
+                typex : str
+                    OS machine name
+
+                arc : str
+                    Processor architecture
+
+            Returns
+            -------
+            List
+                List of Supported subversions
+
+            >>> __archAndSystemChecker([{"filename": "...-win32..."}, {"filename": "...-manylinux2014_x86_64..."}], "-win32", "")
+            [{"filename": "...-win32..."}]
+
+            >>> __archAndSystemChecker([{"filename": "...-win32..."}, {"filename": "...-manylinux2014_x86_64..."}], "--manylinux", "x86_64")
+            [{"filename": "...-manylinux2014_x86_64..."}]
+
+        """
+
         vs = []
 
         for i in vers:
@@ -206,6 +346,27 @@ class Installer:
 
 
     def  __processerChecker(self, vers:list) -> list:
+        """
+            Get de OS machine name and processor architecture
+
+            Parameters
+            ----------
+                vers : list
+                    List of all subversions of a specific version of a package
+
+            Returns
+            -------
+            List
+                Returns of __archAndSystemChecker
+
+            >>> __processerChecker([{"filename": "...-win32..."}, {"filename": "...-manylinux2014_x86_64..."}])
+            [{"filename": "...-win32..."}]
+
+            >>> __processerChecker([{"filename": "...-win32..."}, {"filename": "...-manylinux2014_x86_64..."}])
+            [{"filename": "...-manylinux2014_x86_64..."}]
+
+        """
+
         system = platform.system()
 
         if system == "Windows":
@@ -224,6 +385,26 @@ class Installer:
 
 
     def __checkTypeInstallation(self, vers:list) -> list:
+        """
+            Find the best installation file from a list of subversions in a package
+
+            Parameters
+            ----------
+                vers : list
+                    List of all subversions of a specific version of a package
+
+            Returns
+            -------
+            List
+                A list with the data of an installer and its installation function
+
+            >>> ____checkTypeInstallation([{"filename": "package.tar", ...}, {"filename": "package.whl", ...}])
+            [{"filename": "package.whl", ...}, self.__wheelInstall]
+
+            >>> ____checkTypeInstallation([{"filename": "package.tar", ...}])
+            [{"filename": "package.tar", ...}, self.__tarInstall]
+        """
+
         remote = [i for i in vers if i['url'].endswith('.whl')]
 
         if len(remote) == 0:
@@ -233,12 +414,27 @@ class Installer:
             return [remote[0], self.__wheelInstall]
 
         else:
-            
             return [self.__cpythonChecker(self.__processerChecker(vers))[0], self.__wheelInstall]
 
-
     
-    def __downloadPackage(self, url:str, filew:str, http) -> None:
+    def __downloadPackage(self, url:str, filew:str, http:urllib3.PoolManager) -> None:
+        """
+            Download package installation file
+
+            Parameters
+            ----------
+                url : str
+                    Url of installation file
+
+                filew : str
+                    Name of installation file
+
+                http : urllib3.PoolManager
+                    Urllib PoolManager web connection
+
+            >>> __downloadPackage("https://domain.com/package.whl", "package.whl", urllib3.PoolManager())
+            None
+        """
         if os.path.exists(filew):
             return
 
@@ -248,7 +444,30 @@ class Installer:
             f.write(files.data)
 
     
-    def __installPackageDependencies(self, res:dict, http, version:str) -> list:
+    def __installPackageDependencies(self, res:dict, http:urllib3.PoolManager, version:str) -> list:
+        """
+            Find, download and install dependencies package
+
+            Parameters
+            ----------
+                res : dict
+                    response from a package's Pypi API
+
+                filew : str
+                    Name of installation file
+
+                http : urllib3.PoolManager
+                    Urllib PoolManager web connection
+
+                version : str
+                    Package version to be installed
+
+            Returns
+            -------
+            List
+                A list containing the installation result, size and version
+
+        """
         temp = tempfile.gettempdir()
 
         vers = self.__normalizeVersion(version, res)
@@ -264,10 +483,35 @@ class Installer:
         remote = self.__checkTypeInstallation(vers)
 
         self.__downloadPackage(remote[0]['url'], temp + f"/packsX/{remote[0]['filename']}", http)
+
         return [remote[1](res['info']['name'], temp + f"/packsX/{remote[0]['filename']}"), remote[0]['size'], vx]
         
 
-    def __installPackage(self, res:dict, http, version:str) -> str:
+    def __installPackage(self, res:dict, http:urllib3.PoolManager, version:str) -> dict:
+        """
+            Find, download and install package
+
+            Parameters
+            ----------
+                res : dict
+                    response from a package's Pypi API
+
+                filew : str
+                    Name of installation file
+
+                http : urllib3.PoolManager
+                    Urllib PoolManager web connection
+
+                version : str
+                    Package version to be installed
+
+            Returns
+            -------
+            list
+                all subversions of a package version
+
+        """
+
         temp = tempfile.gettempdir()
         vers = self.__normalizeVersion(version, res)
         v = vers.pop()
@@ -283,18 +527,15 @@ class Installer:
 
         Logger(f"\nPackage {res['info']['name']} found in version {v} ({byteCalc(remote[0]['size'])})", 'green')
 
-        ### DOWNLOAD
-
         Logger(f"\nDownloading {res['info']['name']}", 'pink', end='\r')
         self.__downloadPackage(remote[0]['url'], temp + f"/packsX/{remote[0]['filename']}", http)
         Logger(f"{'Download finish':50}", 'green')
 
-        ### INSTALL 
-
         Logger(f"\nInstalling {res['info']['name']}", 'pink', end='\r')
-        whl = remote[1](res['info']['name'], temp + f"/packsX/{remote[0]['filename']}")
+
+        installed = remote[1](res['info']['name'], temp + f"/packsX/{remote[0]['filename']}")
         
-        if not whl:
+        if not installed:
             addDependencies(f"{res['info']['name']}=={v}", self.__dev)
             Logger(f"{res['info']['name']} was successfully installed", 'green')
 
@@ -304,7 +545,25 @@ class Installer:
         return remote[0]
 
 
-    def __dependenciesLoop(self, reqs:list, fun:Callable, http, spacer:int = 3):
+    def __dependenciesLoop(self, reqs:list, fun:Callable, http:urllib3.PoolManager, spacer:int = 3) -> None:
+        """
+            Find all dependencies and install
+
+            Parameters
+            ----------
+                reqs : list
+                    List of dependencies
+
+                fun : str
+                    Callback
+
+                http : urllib3.PoolManager
+                    Urllib PoolManager web connection
+
+                spacer : str
+                    number of left spaces
+        """
+
         for i in reqs:
             if '; extra' in i or i.split(' ')[0] in self.__deps or "and extra" in i: 
                 continue
@@ -317,15 +576,35 @@ class Installer:
 
             Logger(f"{' ' * spacer}{i.split(' ')[0]}", end="\r")
             
-            a = fun(i, http, spacer)
+            dependencieResult = fun(i, http, spacer)
             
-            Logger(f"{' ' * spacer}{a[0]}", 'green')
+            Logger(f"{' ' * spacer}{dependencieResult[0]}", 'green')
 
-            if len(a) > 1:
-                a[1](*a[2])
+            if len(dependencieResult) > 1:
+                dependencieResult[1](*dependencieResult[2])
 
     
-    def __dependencies(self, pack:str, http, spacer:int) -> list:
+    def __dependencies(self, pack:str, http:urllib3.PoolManager, spacer:int) -> list:
+        """
+            Download and install package dependencies
+
+            Parameters
+            ----------
+                pack : list
+                    Package name
+
+                http : urllib3.PoolManager
+                    Urllib PoolManager web connection
+
+                spacer : str
+                    number of left spaces
+
+            Returns
+            -------
+            list
+                a list containing the message for the Logger, if you have subdependencies you will also have __dependenciesLoop and the list of subdependencies
+        """
+
         packinfo = http.request("GET", f"https://pypi.org/pypi/{pack.split(' ')[0]}/json/")
 
         if packinfo.status == 404:
@@ -346,11 +625,29 @@ class Installer:
             return ret 
             
         addDependencies(f"{packinfo['info']['name']}=={inst[2]}", self.__dev)
+
         return ret
         
 
-    def __remote_package(self, pack:str, http) -> dict:
-        packName = pack.replace("=", ' ').replace(">", ' ').replace("<", ' ').replace("~", ' ').split(' ')[0]
+    def __remote_package(self, pack:str, http:urllib3.PoolManager) -> dict:
+        """
+            Searches the API for package data
+
+            Parameters
+            ----------
+                pack : list
+                    Package name
+
+                http : urllib3.PoolManager
+                    Urllib PoolManager web connection
+
+            Returns
+            -------
+            dict
+                Package data from API
+        """
+
+        packName = pack.replace("=", ' ').replace(">", ' ').replace("<", ' ').replace("~", ' ').replace("!", ' ').split(' ')[0]
     
         packinfo = http.request("GET", f"https://pypi.org/pypi/{packName}/json/")
             
@@ -375,6 +672,7 @@ class Installer:
             self.__dependenciesLoop(packinfo['info']['requires_dist'], self.__dependencies, http, 3)
         
         Logger("\n")
+
         return packinfo
 
 

@@ -43,8 +43,8 @@ After running the command above, the Packs will add the Pillow package to the re
 To install any package, you can use the following commands and flags:
 
 ```
-python main.py install <Package name>
-python main.py i <Package name>
+packs install <Package name>
+packs i <Package name>
 
 -u To update
 -d or --dev To development packages
@@ -54,9 +54,9 @@ python main.py i <Package name>
 To remove any package use the following commands and flags:
 
 ```
-python main.py remove <Package name>
-python main.py uninstall <Package name>
-python main.py rm <Package name>
+packs remove <Package name>
+packs uninstall <Package name>
+packs rm <Package name>
 
 --yes or -y to accept all
 -r <file path> to remove the packages through a file
@@ -70,6 +70,14 @@ packs list
 
 --freeze or -f to list in freeze format
 --color or -c to remove the colors
+```
+
+To see the list of package versions available on / offline use this commands and flags:
+
+```
+packs check <Package name>
+
+--local or -l to see if the package is installed locally and is up to date
 ```
 
 <strong>
