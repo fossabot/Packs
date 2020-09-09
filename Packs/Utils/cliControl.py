@@ -184,3 +184,7 @@ def listArgsCheck(commands:list) -> list:
     commands = [i for i in commands if i not in args]
     
     return [commands, l]
+
+
+def listArgsCache(commands:list) -> list:
+    pass

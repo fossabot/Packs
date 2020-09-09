@@ -49,12 +49,20 @@ packs list
 --output ou -o para retornar uma lista (python list)
 ```
 
-Para ver a lista de versões de um pacote disponíveis on/offline
+Para ver a lista de versões de um pacote disponíveis on/offline use este comando e as flags:
 
 ```
 packs check <Nome do pacote>
 
 --local ou -l para ver se o pacote esta instalado localmente e está atualizado
+```
+
+Para manipular o cache salvo use este comando e as flags:
+
+```
+packs cache
+-c para limpar o cache
+-l para lista os pacotes em cache
 ```
 
 <strong>

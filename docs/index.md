@@ -80,6 +80,14 @@ packs check <Package name>
 --local or -l to see if the package is installed locally and is up to date
 ```
 
+To manipulate the saved cache use this command and the flags:
+
+```
+packs cache
+-c to clear cache
+-l to list packages in cache
+```
+
 <strong>
     <p align="center" style="text-align: center;">Vupy social networking 2020</p>
 </strong>

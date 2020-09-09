@@ -14,7 +14,8 @@ except (ImportError, ModuleNotFoundError):
     from Utils.versionControl import lenfer
     from Utils.logger import Logger
 
-class checker:
+
+class Checker:
     def __init__(self, args, cli=False):
         if cli:
             self.run(args[2:])

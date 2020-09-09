@@ -3,11 +3,11 @@ import os
 
 try:
     import Packs.checkRequirements
-    from Packs.Commands import install, remove, listPackage, check
+    from Packs.Commands import install, remove, listPackage, check, cache
 
 except (ModuleNotFoundError, ImportError):
     import checkRequirements
-    from Commands import install, remove, listPackage, check
+    from Commands import install, remove, listPackage, check, cache
 
 
 def main():
@@ -21,7 +21,8 @@ def main():
             'rm': remove.Remover,
             'ls': listPackage.Lister,
             'list': listPackage.Lister,
-            'check': check.checker,
+            'check': check.Checker,
+            'cache': cache.Cacher
         }
 
         dropping = ['ls', 'list']
@@ -49,6 +50,10 @@ def main():
 
             print('\033[92m check           <packages>\033[37m  to list all version of a package list')
             print('\033[92m -l or --local             \033[37m  to list all version of a package list that are installed\n')
+
+            print('\033[92m check                     \033[37m  to manipulate the cache')
+            print('\033[92m -l                        \033[37m  to list packages in cache')
+            print('\033[92m -c                        \033[37m  to clear cache\n')
 
         elif sys.argv[1].lower() not in commands:
             print('\033[91mInvalid command\033[37m')
